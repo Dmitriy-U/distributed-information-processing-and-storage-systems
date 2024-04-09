@@ -1,31 +1,24 @@
-import socket
-import sys
+import zmq
+import json
+
+from helpers import get_prime_numbers
 
 
-def work(host: str, port: int):
-    server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server.bind((host, port))
-    server.listen(2)
-    conn, addr = server.accept()
+context = zmq.Context()
 
-    while True:
-        data = conn.recv(1024).decode()
+receiver = context.socket(zmq.PULL)
+receiver.connect("tcp://localhost:5557")
 
-        if not data:
-            break
+sender = context.socket(zmq.PUSH)
+sender.connect("tcp://localhost:5558")
 
-        print("from connected user: " + str(data))
-        conn.send(' -> '.encode())
+print("Worker are ready")
 
-    conn.close()
+while True:
+    range_start, range_end = json.loads(receiver.recv())
+    
+    result = get_prime_numbers(range_start, range_end)
+    print(range_start, range_end, result) # TODO: Finish it (send result)
 
-
-if __name__ == '__main__':
-    try:
-        (_, host, port) = sys.argv
-        print(f"Worker starts: {host}:{port}")
-        work(host, int(port))
-    except ValueError:
-        exit('!')
-    except KeyboardInterrupt:
-        exit('\n\rWorker exit')
+    sender.send(b'')
+    

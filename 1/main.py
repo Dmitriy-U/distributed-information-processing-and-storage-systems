@@ -1,34 +1,31 @@
-import time
-import socket
-import sys
+import zmq
+import json
 
-from helpers import get_prime_numbers
-
-
-def work():
-    client_socket = socket.socket()
-    client_socket.connect(('127.0.0.1', 8888))
-
-    client_socket.send('123'.encode())
-    data = client_socket.recv(1024).decode()
-
-    print('Received from server: ' + data)
-
-    client_socket.close()
+from helpers import get_ranges_by_number_of_workers
 
 
-if __name__ == '__main__':
-    try:
-        (_, prime_search_range_start_number, prime_search_range_end_number) = sys.argv
-        range_start = int(prime_search_range_start_number)
-        range_end = int(prime_search_range_end_number)
-        print("Program starts", f"range start: {range_start}", f"range start: {range_end}", sep="\n\r")
-        time_start = time.time()
-        get_prime_numbers(range_start, range_end)
-        time_end = time.time()
-        print(f'time: {time_end - time_start}c')
-        work()
-    except ValueError:
-        exit('!')
-    except KeyboardInterrupt:
-        exit('\n\rProgram exit')
+context = zmq.Context()
+
+sender = context.socket(zmq.PUSH)
+sender.bind("tcp://*:5557")
+
+sink = context.socket(zmq.PUSH)
+sink.connect("tcp://localhost:5558")
+
+prime_range_start = int(input("Input minimum digit of searching prime digits range start: "))
+prime_range_end = int(input("Input minimum digit of searching prime digits range end: "))
+number_of_workers = int(input("Input the number of workers: "))
+
+tasks = get_ranges_by_number_of_workers(number_of_workers, prime_range_start, prime_range_end)
+
+print("Press Enter when the workers are ready:")
+_ = input()
+print("Sending tasks to workers...")
+
+sink.send(b'0')
+
+for task in tasks:
+    print(task)
+    sender.send_string(json.dumps(task))
+
+# TODO: Finish it (receive result)
