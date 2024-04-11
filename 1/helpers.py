@@ -44,4 +44,6 @@ def get_ranges_by_number_of_workers(number_of_workers: int, prime_range_start: i
             worker_prime_range_end = (prime_range_start + (worker_index + 1) * digit_part) - 1
         
         tasks.append((worker_prime_range_start, worker_prime_range_end,))
+    
+    return tasks
         

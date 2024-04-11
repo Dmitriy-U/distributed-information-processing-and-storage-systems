@@ -18,3 +18,35 @@
 вмещаются в стандартные элементарные типы данных). Проверку на 
 простоту чисел можно производить на основе вероятностных 
 алгоритмов проверки ().
+
+## Исполнение
+
+Запускаем несколько исполнителей, затем главнй процесс
+
+### Исполнитель
+
+#### Windows
+
+```ps1
+.\venv\Scripts\Activate.ps1; python.exe .\worker.py
+```
+
+#### Linux
+
+```shell
+source ./venv/bin/activate && ./python worker.py
+```
+
+### Главный процесс
+
+#### Windows
+
+```ps1
+.\venv\Scripts\Activate.ps1; python.exe .\main.py
+```
+
+#### Linux
+
+```shell
+source ./venv/bin/activate && ./python main.py
+```
