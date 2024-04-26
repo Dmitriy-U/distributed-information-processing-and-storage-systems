@@ -1,5 +1,4 @@
-import sys
-import socket
+import zmq
 import argparse
 
 from enum import Enum
@@ -37,17 +36,21 @@ block_data = args.block_data
 
 if command == Command.RUN.value:
     print('Хранение запущено')
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.bind((HOST, PORT))
-        s.listen()
-        conn, addr = s.accept()
-        with conn:
-            print(f"Подключен к {addr}")
-            while True:
-                data = conn.recv(1024)
-                if not data:
-                    break
-                conn.sendall(data)
+    
+    context = zmq.Context()
+
+    receiver = context.socket(zmq.PULL)
+    receiver.bind("tcp://*:9000")
+
+    sender = context.socket(zmq.PUSH)
+    sender.connect("tcp://127.0.0.255:9000")
+
+    while True:
+        data = receiver.recv()
+        
+        print('Has result: ', data.decode('utf8'))
+        sender.send_string(data.decode('utf8'))
+        print('Sended -->')
 else:
     match command:
         case Command.HAS.value:
