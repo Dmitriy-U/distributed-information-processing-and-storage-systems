@@ -1,4 +1,4 @@
-# Лабораторная работа 1
+# Лабораторная работа 2
 
 Разработать информационную систему (программу), решающую в 
 параллельном режиме одну из задач (согласно варианту задания) из таблицы 2.1.
@@ -21,20 +21,20 @@
 
 ## Исполнение
 
-Запускаем несколько исполнителей, затем главнй процесс
+Запускаем хранение на разных узлалх, затем запускаем программу обращения к распределённому хранилищу данных
 
 ### Исполнитель
 
 #### Windows
 
 ```ps1
-.\venv\Scripts\Activate.ps1; python.exe .\worker.py
+.\venv\Scripts\Activate.ps1; python.exe .\storaging.py
 ```
 
 #### Linux
 
 ```shell
-source ./venv/bin/activate && ./python worker.py
+source ./venv/bin/activate && python ./storaging.py
 ```
 
 ### Главный процесс
@@ -48,5 +48,5 @@ source ./venv/bin/activate && ./python worker.py
 #### Linux
 
 ```shell
-source ./venv/bin/activate && ./python main.py
+source ./venv/bin/activate && python ./main.py
 ```
