@@ -4,12 +4,11 @@ import socket
 from threading import Thread
 
 from constants import FILE_SYSTEM
-from helpers import Command, fs_has, fs_read
+from helpers import Command, fs_has, fs_read, parse_args_storaging
 
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-host = "127.0.0.255"
-port = 1234
+(host, port) = parse_args_storaging()
 
 s.bind((host, port))
 s.listen(5)
@@ -19,7 +18,7 @@ def socket_handle(client_socket: socket.SocketType, client_addres: tuple[str, st
     while True:
         request_data = client_socket.recv(2048).decode("UTF-8")
         request_attr_list = request_data.split(":")
-        
+
         match request_attr_list[0]:
             case Command.HAS.value:
                 _, file = request_attr_list
@@ -34,9 +33,10 @@ def socket_handle(client_socket: socket.SocketType, client_addres: tuple[str, st
 
                 if file_blocks is None:
                     return
-                
+
                 for block, block_data in file_blocks.items():
-                    response_data = f"{request_data}:{block}:{block_data.decode("utf-8")}"
+                    data = block_data.decode("utf-8")
+                    response_data = f"{request_data}:{block}:{data}"
 
                     if client_socket.send(bytes(response_data, 'UTF-8')) == len(response_data):
                         print("sent ", repr(response_data), " successfully.")
@@ -54,6 +54,7 @@ def socket_handle(client_socket: socket.SocketType, client_addres: tuple[str, st
 
 
 while True:
+    print(f"Хранение данных запущено по адресу {host}:{port}")
     c_socket, c_addres = s.accept()
     thread = Thread(target=socket_handle, args=(c_socket, c_addres))
     thread.start()

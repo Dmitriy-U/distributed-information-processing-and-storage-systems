@@ -2,18 +2,20 @@ import time
 import socket
 import select
 
-from constants import BYTE_BLOCK_LENGTH, EXTERNAL_NODE_COUNT, FILE_SYSTEM
-from helpers import Command, parse_args, fs_read
+from constants import BYTE_BLOCK_LENGTH, EXTERNAL_NODE_COUNT
+from helpers import Command, parse_args_main, get_db_connection, db_prepare
 
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
 host = "127.0.0.255"
 port = 1234
 
+db_connection = get_db_connection()
+db_prepare(db_connection)
 
 if __name__ == "__main__":
-    (command, file, file_source, block, block_data) = parse_args()
-    
+    (command, host_list, file, file_source, block, block_data) = parse_args_main()
+
     try:
         s.connect((host, port))
     except BlockingIOError as e:
@@ -42,7 +44,7 @@ if __name__ == "__main__":
             assert file is not None, "Вы не указали атрибут --file"
 
             request_data = f"{Command.READ.value}:{file}"
-            
+
             select.select([], [s], [])
             if s.send(bytes(request_data, 'UTF-8')) == len(request_data):
                 print("sent ", repr(request_data), " successfully.")
@@ -65,7 +67,7 @@ if __name__ == "__main__":
                 file_parts = [file_source_string[start:start + BYTE_BLOCK_LENGTH] for start in range(0, len(file_source_string), BYTE_BLOCK_LENGTH)]
                 print(file_parts)
                 # TODO
-            
+
         case Command.DELETE.value:
             print("DELETE")
         case Command.CHANGE_BLOCK.value:
