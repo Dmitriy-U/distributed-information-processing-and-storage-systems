@@ -1,34 +1,23 @@
 import argparse
-import sqlite3
 
 from enum import Enum
 from io import TextIOWrapper
+import json
 
 from constants import DB_PATH_NAME
+from type import DataBase, DataBaseHost, FileSystem, FileSystemBlockId, FileSystemFilePathName
 
 
-def get_db_connection() -> sqlite3.Connection:
-    return sqlite3.connect(DB_PATH_NAME)
+def get_db() -> DataBase:
+    with open(DB_PATH_NAME, 'r') as f:
+        file_string = f.read()
+
+    return json.loads(file_string)
 
 
-def db_prepare(db_connection: sqlite3.Connection):
-    cur = db_connection.cursor()
-
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS hosts (
-          host VARCHAR(10) NOT NULL
-        );
-    """)
-
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS files (
-            file VARCHAR(256) NOT NULL,
-            PRIMARY KEY (file),
-            FOREIGN KEY (file) REFERENCES hosts(host)
-        );
-    """)
-
-    db_connection.commit()
+def set_db(db: DataBase):
+    with open(DB_PATH_NAME, 'w') as f:
+        f.write(json.dumps(db))
 
 
 class Command(Enum):
@@ -43,25 +32,26 @@ class Command(Enum):
         return list(map(lambda c: c.value, cls))
 
 
-def parse_args_main() -> tuple[Command, list[str], None | str, None | TextIOWrapper, None | int, None | bytes]:
+def parse_args_main() -> tuple[Command, set[DataBaseHost] | None, None | str, None | TextIOWrapper, None | int, None | bytes]:
     parser = argparse.ArgumentParser(prog="main.py", description="Распределённая файловая система")
     parser.add_argument('--command', '-C', help='команда', choices=Command.list(), required=True)
     parser.add_argument('--file', '-F', metavar="path", help="файл", type=str)
     parser.add_argument('--file-source', '-FS', metavar="path", help="файл записываемый", type=open)
     parser.add_argument('--block', '-B', metavar="NUMBER", help='номер блока', type=int)
     parser.add_argument('--block-data', '-BD', metavar="BLOB", help='данные блока', type=str)
-    parser.add_argument('--host-list', '-HL', nargs='+', metavar="HOST", help='<Required> Set flag', type=str,
-                        required=True)
+    parser.add_argument('--host-list', '-HL', nargs='+', metavar="HOST", help='<Required> Set flag', type=DataBaseHost)
     args = parser.parse_args()
 
     command = args.command
-    host_list: list[str] = args.host_list
+    _host_list: list[DataBaseHost] | None = args.host_list
+    if _host_list is None:
+        host_list = _host_list
+    else:
+        host_list = set(_host_list)
     file: None | str = args.file
     file_source: None | TextIOWrapper = args.file_source
     block: None | int = args.block
     block_data: None | bytes = args.block_data
-
-    print(host_list)
 
     return command, host_list, file, file_source, block, block_data
 
@@ -79,11 +69,11 @@ def parse_args_storaging() -> tuple[None | str, None | int]:
     return host, port
 
 
-def fs_has(fs: dict[str, dict[str, bytes]], file: str) -> bool:
+def fs_has(fs: FileSystem, file: FileSystemFilePathName) -> bool:
     return file in fs
 
 
-def fs_read(fs: dict[str, dict[str, bytes]], file: str) -> dict[str, bytes] | None:
+def fs_read(fs: FileSystem, file: FileSystemFilePathName) -> dict[FileSystemBlockId, bytes] | None:
     if fs_has(fs, file):
         return fs[file]
     else:

@@ -4,7 +4,8 @@ import socket
 from threading import Thread
 
 from constants import FILE_SYSTEM
-from helpers import Command, fs_has, fs_read, parse_args_storaging
+from helpers import Command, fs_read, parse_args_storaging
+from type import FileSystemFilePathName
 
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
@@ -19,27 +20,26 @@ def socket_handle(client_socket: socket.SocketType, client_addres: tuple[str, st
         request_data = client_socket.recv(2048).decode("UTF-8")
         request_attr_list = request_data.split(":")
 
+        print(request_attr_list, request_attr_list[0], Command.READ.value)
         match request_attr_list[0]:
-            case Command.HAS.value:
-                _, file = request_attr_list
-                has_file = fs_has(FILE_SYSTEM, file)
-                response_data = f"{request_data}:{int(has_file)}"
-
-                if client_socket.send(bytes(response_data, 'UTF-8')) == len(response_data):
-                    print("sent ", repr(response_data), " successfully.")
             case Command.READ.value:
-                _, file = request_attr_list
-                file_blocks = fs_read(FILE_SYSTEM, file)
+                file = request_attr_list[1]
+                file_blocks = fs_read(FILE_SYSTEM, file) # type: ignore
 
                 if file_blocks is None:
                     return
 
-                for block, block_data in file_blocks.items():
-                    data = block_data.decode("utf-8")
-                    response_data = f"{request_data}:{block}:{data}"
+                file_block_id = f"{request_attr_list[2]}:{request_attr_list[3]}"
+                
+                if file_block_id not in file_blocks:
+                    return
 
-                    if client_socket.send(bytes(response_data, 'UTF-8')) == len(response_data):
-                        print("sent ", repr(response_data), " successfully.")
+                block_data = file_blocks[file_block_id]
+                data = block_data.decode("utf-8")
+                response_data = f"{request_data}:{data}"
+
+                if client_socket.send(bytes(response_data, 'UTF-8')) == len(response_data):
+                    print("sent ", repr(response_data), " successfully.")
             case Command.WRITE.value:
                 print("WRITE")
             case Command.DELETE.value:
