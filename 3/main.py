@@ -33,7 +33,7 @@ def main():
                 return
             
             db_host_list = db_file.keys()
-            result: dict[str,bytes] = {}
+            result_blocks: dict[str,bytes] = {}
             db_file_block_count: None | int = None
             for db_host in db_host_list:
                 host, port = db_host.split(":")
@@ -47,6 +47,8 @@ def main():
                     print("BlockingIOError")
 
                 for db_block_id in db_block_id_list:
+                    db_file_block_count, db_file_block_number = map(lambda x: int(x), db_block_id.split(":"))
+
                     if db_file_block_count is None:
                         db_file_block_count = int(db_block_id.split(":")[0])
                     request_data = f"{Command.READ.value}:{file}:{db_block_id}"
@@ -55,15 +57,15 @@ def main():
 
                     response_data = s.recv(2048).decode("UTF-8")
                     response_data_items = response_data.split(":")
-                    result[db_block_id] = bytes(response_data_items.pop().encode("utf-8")) # type: ignore
+                    result_blocks[db_file_block_number] = bytes(response_data_items.pop().encode("utf-8")) # type: ignore
                 s.close()
 
-            block_items = list(result.values())
+            block_items = list(dict(sorted(result_blocks.items())).values())
             if len(block_items) != db_file_block_count:
                 return
 
             data = reduce(concatenate, block_items)
-            print(f"Файл {file} {data}" )
+            print(f"Файл {file} {data}")
         case Command.WRITE.value:
             assert file is not None, "Вы не указали атрибут --file"
             assert file_source is not None, "Вы не указали атрибут --file_source"
@@ -72,7 +74,6 @@ def main():
                 file_source_string = f.read(1024)
                 file_parts = [file_source_string[start:start + BYTE_BLOCK_LENGTH] for start in range(0, len(file_source_string), BYTE_BLOCK_LENGTH)]
                 print(file_parts)
-                # TODO
 
         case Command.DELETE.value:
             print("DELETE")
