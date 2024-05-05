@@ -8,7 +8,7 @@ import socket
 import time
 
 from constants import DB_PATH_NAME
-from type import DataBase, DataBaseFile, FileSystem, FileSystemBlockId, FileSystemFilePathName
+from type import DataBase, DataBaseFile, DataBaseFilePathName, FileSystem, FileSystemBlockId, FileSystemFilePathName
 
 
 def get_config() -> dict:
@@ -42,6 +42,7 @@ def get_file_data(file: str, db_file: DataBaseFile) -> bytes:
     db_host_list = db_file.keys()
     result_blocks: dict[str | int, bytes] = {}
     db_file_block_count: None | int = None
+
     for db_host in db_host_list:
         host, port = db_host.split(":")
         db_block_id_list = db_file[db_host]
@@ -65,13 +66,37 @@ def get_file_data(file: str, db_file: DataBaseFile) -> bytes:
             response_data = s.recv(2048).decode("UTF-8")
             response_data_items = response_data.split(":")
             result_blocks[db_file_block_number] = bytes(response_data_items.pop().encode("utf-8"))
-            time.sleep(0.1)
+
         s.close()
 
     block_items = list(dict(sorted(result_blocks.items())).values())
     assert len(block_items) == db_file_block_count, f"Отстутствуют блоки файлов"
 
     return reduce(concatenate_bytes, block_items)
+
+
+def delete_file(file: str, db_file: DataBaseFile) -> bool:
+    db_host_list = db_file.keys()
+
+    result = True
+    for db_host in db_host_list:
+        host, port = db_host.split(":")
+
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            try:
+                s.connect((host, int(port)))
+            except BlockingIOError as e:
+                print("BlockingIOError")
+
+            s.sendall(bytes(f"{Command.DELETE.value}:{file}", 'UTF-8'))
+            
+            response_data = s.recv(2048).decode("UTF-8")
+    
+        is_deleted = bool(int(response_data.split(":").pop()))
+        if not is_deleted:
+            result = False
+
+    return result
 
 
 class Command(Enum):
@@ -86,7 +111,7 @@ class Command(Enum):
         return list(map(lambda c: c.value, cls))
 
 
-def parse_args_main() -> tuple[Command, None | str, None | TextIOWrapper, None | int, None | bytes]:
+def parse_args_main() -> tuple[Command, None | DataBaseFilePathName, None | TextIOWrapper, None | int, None | bytes]:
     parser = argparse.ArgumentParser(prog="main.py", description="Распределённая файловая система")
     parser.add_argument('--command', '-C', help='команда', choices=Command.list(), required=True)
     parser.add_argument('--file', '-F', metavar="path", help="файл", type=str)
@@ -96,7 +121,11 @@ def parse_args_main() -> tuple[Command, None | str, None | TextIOWrapper, None |
     args = parser.parse_args()
 
     command = args.command
-    file: None | str = args.file
+    _file: None | str = args.file
+    if _file is None:
+        file = None
+    else:
+        file = DataBaseFilePathName(_file)
     file_source: None | TextIOWrapper = args.file_source
     block: None | int = args.block
     block_data: None | bytes = args.block_data
@@ -119,6 +148,14 @@ def parse_args_storaging() -> tuple[None | str, None | int]:
 
 def fs_has(fs: FileSystem, file: FileSystemFilePathName) -> bool:
     return file in fs
+
+
+def fs_delete_file(fs: FileSystem, file: FileSystemFilePathName) -> bool:
+    if file in fs:
+        del fs[file]
+        return True
+    else:
+        return False
 
 
 def fs_read_file_blocks(fs: FileSystem, file: FileSystemFilePathName) -> dict[FileSystemBlockId, bytes] | None:

@@ -1,7 +1,12 @@
-from type import FileSystem
+from type import FileSystem, FileSystemBlockId, FileSystemFilePathName
 
 
-FILE_SYSTEM = FileSystem({})
+FILE_SYSTEM = FileSystem({
+    FileSystemFilePathName("test.txt"): {
+        FileSystemBlockId("2:1"): b'',
+        FileSystemBlockId("2:1"): b''
+    }
+})
 
 HOST = "127.0.01"
 

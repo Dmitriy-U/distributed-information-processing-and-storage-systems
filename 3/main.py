@@ -2,8 +2,8 @@ import random
 import socket
 
 from constants import BYTE_BLOCK_LENGTH
-from helpers import Command, get_config, get_file_data, has_file_in_db, parse_args_main, get_db, set_db
-from type import DataBaseBlockId, DataBaseFile, DataBaseFilePathName, DataBaseHost
+from helpers import Command, delete_file, get_config, get_file_data, has_file_in_db, parse_args_main, get_db, set_db
+from type import DataBaseBlockId, DataBaseFile, DataBaseHost
 
 
 def main():
@@ -20,7 +20,7 @@ def main():
             assert file is not None, "Вы не указали атрибут --file"
 
             db = get_db()
-            db_file = db.get(DataBaseFilePathName(file), None) # type: ignore
+            db_file = db.get(file, None) # type: ignore
             
             assert db_file is not None, f"Файл {file} отсутствует"
             
@@ -66,11 +66,23 @@ def main():
             
             db = get_db()
             
-            db[DataBaseFilePathName(file)] = db_file
+            db[file] = db_file
             
             set_db(db)
         case Command.DELETE.value:
-            print("DELETE")
+            assert file is not None, "Вы не указали атрибут --file"
+
+            db = get_db()
+            db_file = db.get(file, None) # type: ignore
+            
+            assert db_file is not None, f"Файл {file} отсутствует"
+            
+            is_deleted = delete_file(file, db_file)
+            
+            del db[file]
+            set_db(db)
+            
+            print(f"Файл удалён" if is_deleted else f"Файл не был удалён")
         case Command.CHANGE_BLOCK.value:
             print("CHANGE_BLOCK")
         case _:
