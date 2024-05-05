@@ -5,9 +5,10 @@ from functools import reduce
 from io import TextIOWrapper
 import json
 import socket
+import time
 
 from constants import DB_PATH_NAME
-from type import DataBase, DataBaseFile, DataBaseHost, FileSystem, FileSystemBlockId, FileSystemFilePathName
+from type import DataBase, DataBaseFile, FileSystem, FileSystemBlockId, FileSystemFilePathName
 
 
 def get_config() -> dict:
@@ -21,7 +22,7 @@ def get_db() -> DataBase:
     with open(DB_PATH_NAME, 'r') as f:
         file_string = f.read()
 
-    return json.loads(file_string)
+    return DataBase(json.loads(file_string))
 
 
 def set_db(db: DataBase):
@@ -39,7 +40,7 @@ def has_file_in_db(db: DataBase, file: str) -> bool:
 
 def get_file_data(file: str, db_file: DataBaseFile) -> bytes:
     db_host_list = db_file.keys()
-    result_blocks: dict[str | int,bytes] = {}
+    result_blocks: dict[str | int, bytes] = {}
     db_file_block_count: None | int = None
     for db_host in db_host_list:
         host, port = db_host.split(":")
@@ -63,12 +64,12 @@ def get_file_data(file: str, db_file: DataBaseFile) -> bytes:
 
             response_data = s.recv(2048).decode("UTF-8")
             response_data_items = response_data.split(":")
-            result_blocks[db_file_block_number] = bytes(response_data_items.pop().encode("utf-8")) # type: ignore
+            result_blocks[db_file_block_number] = bytes(response_data_items.pop().encode("utf-8"))
+            time.sleep(0.1)
         s.close()
 
     block_items = list(dict(sorted(result_blocks.items())).values())
-    
-    assert len(block_items) != db_file_block_count, f"Отстутствуют блоки файлов"
+    assert len(block_items) == db_file_block_count, f"Отстутствуют блоки файлов"
 
     return reduce(concatenate_bytes, block_items)
 
@@ -120,8 +121,24 @@ def fs_has(fs: FileSystem, file: FileSystemFilePathName) -> bool:
     return file in fs
 
 
-def fs_read(fs: FileSystem, file: FileSystemFilePathName) -> dict[FileSystemBlockId, bytes] | None:
+def fs_read_file_blocks(fs: FileSystem, file: FileSystemFilePathName) -> dict[FileSystemBlockId, bytes] | None:
     if fs_has(fs, file):
         return fs[file]
     else:
         return None
+
+
+def fs_read_file_block(fs: FileSystem, file: FileSystemFilePathName, file_block_id: FileSystemBlockId) -> bytes | None:
+    file_blocks = fs_read_file_blocks(fs, file)
+    if (file_blocks is not None) and (file_block_id in file_blocks):
+        return file_blocks[file_block_id]
+    else:
+        return None
+
+
+def fs_write_file_block(fs: FileSystem, file: FileSystemFilePathName,
+                        file_block_id: FileSystemBlockId, file_block_data: bytes):
+    if file not in fs:
+        fs[file] = {}
+
+    fs[file][file_block_id] = file_block_data

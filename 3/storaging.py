@@ -4,8 +4,8 @@ import socket
 from threading import Thread
 
 from constants import FILE_SYSTEM
-from helpers import Command, fs_read, parse_args_storaging
-from type import FileSystemFilePathName
+from helpers import Command, fs_read_file_block, fs_write_file_block, parse_args_storaging
+from type import FileSystemBlockId, FileSystemFilePathName
 
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
@@ -20,41 +20,40 @@ def socket_handle(client_socket: socket.SocketType, client_addres: tuple[str, st
         request_data = client_socket.recv(2048).decode("UTF-8")
         request_attr_list = request_data.split(":")
 
-        print(request_attr_list, request_attr_list[0], Command.READ.value)
         match request_attr_list[0]:
             case Command.READ.value:
-                file = request_attr_list[1]
-                file_blocks = fs_read(FILE_SYSTEM, file) # type: ignore
+                print('FILE_SYSTEM ->', FILE_SYSTEM)
+                file = FileSystemFilePathName(request_attr_list[1]) # type: ignore
+                file_block_id = FileSystemBlockId(f"{request_attr_list[2]}:{request_attr_list[3]}") # type: ignore
+                file_block_data = fs_read_file_block(FILE_SYSTEM, file, file_block_id)
 
-                if file_blocks is None:
-                    return
+                assert file_block_data is not None, f"Блок {file_block_id} файла {file} отстутсвует"
 
-                file_block_id = f"{request_attr_list[2]}:{request_attr_list[3]}"
-                
-                if file_block_id not in file_blocks:
-                    return
-
-                block_data = file_blocks[file_block_id]
-                data = block_data.decode("utf-8")
+                data = file_block_data.decode("utf-8")
                 response_data = f"{request_data}:{data}"
 
                 if client_socket.send(bytes(response_data, 'UTF-8')) == len(response_data):
                     print("sent ", repr(response_data), " successfully.")
+                print(Command.READ.value, ' --> ', FILE_SYSTEM)
             case Command.WRITE.value:
-                print("WRITE")
+                file = FileSystemFilePathName(request_attr_list[1]) # type: ignore
+                file_block_id = FileSystemBlockId(f"{request_attr_list[2]}:{request_attr_list[3]}") # type: ignore
+                file_block_data = bytes(request_attr_list[4], "UTF-8")
+                
+                fs_write_file_block(FILE_SYSTEM, file, file_block_id, file_block_data)
+                print(Command.WRITE.value, ' --> ', FILE_SYSTEM)
             case Command.DELETE.value:
-                print("DELETE")
+                print("DELETE", request_attr_list)
             case Command.CHANGE_BLOCK.value:
-                print("CHANGE_BLOCK")
+                print("CHANGE_BLOCK", request_attr_list)
             case _:
-                print("Команда отсутствует")
-                exit(0)
+                print("Команда отсутствует", request_attr_list)
 
         time.sleep(0.001)
 
 
+print(f"Хранение данных запущено по адресу {host}:{port}")
 while True:
-    print(f"Хранение данных запущено по адресу {host}:{port}")
     c_socket, c_addres = s.accept()
     thread = Thread(target=socket_handle, args=(c_socket, c_addres))
     thread.start()

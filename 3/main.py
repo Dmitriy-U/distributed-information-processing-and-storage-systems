@@ -1,9 +1,9 @@
-from functools import reduce
 import random
 import socket
 
 from constants import BYTE_BLOCK_LENGTH
-from helpers import Command, get_config, get_file_data, has_file_in_db, parse_args_main, get_db
+from helpers import Command, get_config, get_file_data, has_file_in_db, parse_args_main, get_db, set_db
+from type import DataBaseBlockId, DataBaseFile, DataBaseFilePathName, DataBaseHost
 
 
 def main():
@@ -19,7 +19,8 @@ def main():
         case Command.READ.value:
             assert file is not None, "Вы не указали атрибут --file"
 
-            db_file = get_db().get(file) # type: ignore
+            db = get_db()
+            db_file = db.get(DataBaseFilePathName(file), None) # type: ignore
             
             assert db_file is not None, f"Файл {file} отсутствует"
             
@@ -32,8 +33,6 @@ def main():
             
             config = get_config()
             host_list: list[str] = config.get('hostList', None)
-            
-            print(host_list)
             
             assert host_list is not None, "Вы не указали атрибут --host-list"
 
@@ -48,21 +47,28 @@ def main():
                     host_sockets[host] = s
                 except BlockingIOError as e:
                     print("Ошибка подключения")
-            
-            print(host_sockets)
 
             with file_source as f:
                 file_source_string = f.read(2048)
                 block_list = [file_source_string[start:start + BYTE_BLOCK_LENGTH] for start in range(0, len(file_source_string), BYTE_BLOCK_LENGTH)]
 
             block_count = len(block_list)
+            db_file: DataBaseFile = DataBaseFile({})
             for index, block in enumerate(block_list):
-                print(random.choice(host_list), index + 1, block_count, block)
-                # TODO
-            
-            for sock in host_sockets.values():
-                sock.close()
+                host = DataBaseHost(random.choice(host_list))
+                block_id = DataBaseBlockId(f"{block_count}:{index + 1}")
+                request_data = f"{Command.WRITE.value}:{file}:{block_id}:{block}"
+                host_sockets[host].send(bytes(request_data, 'UTF-8'))
 
+                if host not in db_file:
+                    db_file[host] = []
+                db_file[host].append(block_id)
+            
+            db = get_db()
+            
+            db[DataBaseFilePathName(file)] = db_file
+            
+            set_db(db)
         case Command.DELETE.value:
             print("DELETE")
         case Command.CHANGE_BLOCK.value:
