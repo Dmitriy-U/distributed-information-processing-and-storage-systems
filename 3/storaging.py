@@ -4,7 +4,7 @@ import socket
 from threading import Thread
 
 from constants import FILE_SYSTEM
-from helpers import Command, fs_delete_file, fs_read_file_block, fs_write_file_block, parse_args_storaging
+from helpers import Command, fs_delete_file, fs_read_file_block, fs_write_file_block, fs_write_file_block_by_block_number, parse_args_storaging
 from type import FileSystemBlockId, FileSystemFilePathName
 
 
@@ -19,8 +19,8 @@ def socket_handle(client_socket: socket.SocketType, client_addres: tuple[str, st
         command = request_attr_list[0]
         match command:
             case Command.READ.value:
-                file = FileSystemFilePathName(request_attr_list[1]) # type: ignore
-                file_block_id = FileSystemBlockId(f"{request_attr_list[2]}:{request_attr_list[3]}") # type: ignore
+                file = FileSystemFilePathName(request_attr_list[1])
+                file_block_id = FileSystemBlockId(f"{request_attr_list[2]}:{request_attr_list[3]}")
                 file_block_data = fs_read_file_block(FILE_SYSTEM, file, file_block_id)
 
                 assert file_block_data is not None, f"Блок {file_block_id} файла {file} отстутсвует"
@@ -32,7 +32,7 @@ def socket_handle(client_socket: socket.SocketType, client_addres: tuple[str, st
                     print("sent ", repr(response_data), " successfully.")
             case Command.WRITE.value:
                 file = FileSystemFilePathName(request_attr_list[1])
-                file_block_id = FileSystemBlockId(f"{request_attr_list[2]}:{request_attr_list[3]}") # type: ignore
+                file_block_id = FileSystemBlockId(f"{request_attr_list[2]}:{request_attr_list[3]}")
                 file_block_data = bytes(request_attr_list[4], "UTF-8")
                 
                 result = fs_write_file_block(FILE_SYSTEM, file, file_block_id, file_block_data)
@@ -40,13 +40,19 @@ def socket_handle(client_socket: socket.SocketType, client_addres: tuple[str, st
                 client_socket.sendall(bytes(response_data, "UTF-8"))
                 print("sent ", repr(response_data), " successfully.")
             case Command.DELETE.value:
-                file = FileSystemFilePathName(request_attr_list[1]) # type: ignore
+                file = FileSystemFilePathName(request_attr_list[1])
                 result = fs_delete_file(FILE_SYSTEM, file)
                 response_data = f"{request_data}:{str(int(result))}"
                 client_socket.sendall(bytes(response_data, "UTF-8"))
                 print("sent ", repr(response_data), " successfully.")
             case Command.CHANGE_BLOCK.value:
-                print("CHANGE_BLOCK", request_attr_list)
+                file = FileSystemFilePathName(request_attr_list[1])
+                block = request_attr_list[2]
+                file_block_data = request_attr_list[3]
+
+                result = fs_write_file_block_by_block_number(FILE_SYSTEM, file, int(block), bytes(file_block_data, "UTF-8"))
+                response_data = f"{command}:{file}:{block}:{str(int(result))}"
+                client_socket.sendall(bytes(response_data, "UTF-8"))
             case _:
                 print("Команда отсутствует", request_attr_list)
 

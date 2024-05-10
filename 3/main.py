@@ -1,5 +1,5 @@
-from helpers import Command, delete_file, get_config, get_file_data, has_file_in_db, parse_args_main, get_db, set_db, write_file
-from type import DataBaseBlockId, DataBaseFile, DataBaseHost
+from constants import BYTE_BLOCK_LENGTH
+from helpers import Command, change_block_file, delete_file, get_config, get_file_data, has_file_in_db, parse_args_main, get_db, set_db, write_file
 
 
 def main():
@@ -46,7 +46,7 @@ def main():
             assert file is not None, "Вы не указали атрибут --file"
 
             db = get_db()
-            db_file = db.get(file, None) # type: ignore
+            db_file = db.get(file, None)
             
             assert db_file is not None, f"Файл {file} отсутствует"
             
@@ -57,7 +57,22 @@ def main():
             
             print(f"Файл удалён" if is_deleted else f"Файл не был удалён")
         case Command.CHANGE_BLOCK.value:
-            print("CHANGE_BLOCK")
+            assert file is not None, "Вы не указали атрибут --file"
+            assert block is not None, "Вы не указали атрибут --block"
+            assert block_data is not None, "Вы не указали атрибут --block-data"
+            assert len(block_data) == BYTE_BLOCK_LENGTH, f"Длина блока длжна составлять {BYTE_BLOCK_LENGTH}"
+
+            db = get_db()
+            db_file = db.get(file, None)
+            
+            assert db_file is not None, f"Файл {file} отсутствует"
+            
+            block_changed = change_block_file(db_file, file, block, block_data)
+
+            if block_changed:
+                print(f"Блок {block} файла {file} изменён")
+            else:
+                print(f"Блок {block} файла {file} не изменён")
         case _:
             print("Команда отсутствует")
             exit(0)

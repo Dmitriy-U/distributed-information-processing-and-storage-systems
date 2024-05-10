@@ -6,7 +6,6 @@ from io import TextIOWrapper
 import json
 import random
 import socket
-import time
 
 from constants import BYTE_BLOCK_LENGTH, DB_PATH_NAME
 from type import DataBase, DataBaseBlockId, DataBaseFile, DataBaseFilePathName, DataBaseHost, FileSystem, FileSystemBlockId, FileSystemFilePathName
@@ -138,6 +137,34 @@ def write_file(file: DataBaseFilePathName, file_source: TextIOWrapper, host_list
     return db_file
 
 
+def change_block_file(db_file: DataBaseFile, file: DataBaseFilePathName, block: int, block_data: bytes) -> bool:
+    block_changed = False
+    for host in db_file:
+        print(host)
+        for block_id in db_file[host]:
+            _, block_local = block_id.split(":")
+            block_local = int(block_local)
+            if block == block_local:
+                
+                address, port = host.split(":")
+
+                s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+                try:
+                    s.connect((address, int(port)))
+                except BlockingIOError as e:
+                    print("Ошибка подключения")
+                
+                request_data = f"{Command.CHANGE_BLOCK.value}:{file}:{block_local}:{block_data}"
+                s.send(bytes(request_data, 'UTF-8'))
+                
+                response_data = s.recv(2048).decode("UTF-8")
+                block_changed = bool(int(response_data.split(":").pop()))
+                break
+
+    return block_changed
+
+
 class Command(Enum):
     HAS = 'has'
     READ = 'read'
@@ -219,3 +246,20 @@ def fs_write_file_block(fs: FileSystem, file: FileSystemFilePathName,
 
     fs[file][file_block_id] = file_block_data
     return True
+
+
+def fs_write_file_block_by_block_number(fs: FileSystem, file: FileSystemFilePathName,
+                        file_block_number: int, file_block_data: bytes) -> bool:
+    if file not in fs:
+        return False
+    
+    result = False
+    for file_block_id in fs[file].keys():
+        print(file_block_id)
+        _, block_number = file_block_id.split(":")
+        if int(block_number) == file_block_number:
+            fs[file][file_block_id] = file_block_data
+            result = True
+            break
+
+    return result
