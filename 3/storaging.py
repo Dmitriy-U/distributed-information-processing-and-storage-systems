@@ -9,15 +9,16 @@ from type import FileSystemBlockId, FileSystemFilePathName
 
 
 def socket_handle(client_socket: socket.SocketType, client_addres: tuple[str, str]):
+    print('----------------')
     while True:
         request_data = client_socket.recv(2048)
         if not request_data: break
 
         request_attr_list = request_data.decode("UTF-8").split(":")
 
-        match request_attr_list[0]:
+        command = request_attr_list[0]
+        match command:
             case Command.READ.value:
-                print('FILE_SYSTEM ->', FILE_SYSTEM)
                 file = FileSystemFilePathName(request_attr_list[1]) # type: ignore
                 file_block_id = FileSystemBlockId(f"{request_attr_list[2]}:{request_attr_list[3]}") # type: ignore
                 file_block_data = fs_read_file_block(FILE_SYSTEM, file, file_block_id)
@@ -29,18 +30,21 @@ def socket_handle(client_socket: socket.SocketType, client_addres: tuple[str, st
 
                 if client_socket.send(bytes(response_data, 'UTF-8')) == len(response_data):
                     print("sent ", repr(response_data), " successfully.")
-                print(Command.READ.value, ' --> ', FILE_SYSTEM)
             case Command.WRITE.value:
-                file = FileSystemFilePathName(request_attr_list[1]) # type: ignore
+                file = FileSystemFilePathName(request_attr_list[1])
                 file_block_id = FileSystemBlockId(f"{request_attr_list[2]}:{request_attr_list[3]}") # type: ignore
                 file_block_data = bytes(request_attr_list[4], "UTF-8")
                 
-                fs_write_file_block(FILE_SYSTEM, file, file_block_id, file_block_data)
-                print(Command.WRITE.value, ' --> ', FILE_SYSTEM)
+                result = fs_write_file_block(FILE_SYSTEM, file, file_block_id, file_block_data)
+                response_data = f"{command}:{file}:{file_block_id}:{str(int(result))}"
+                client_socket.sendall(bytes(response_data, "UTF-8"))
+                print("sent ", repr(response_data), " successfully.")
             case Command.DELETE.value:
                 file = FileSystemFilePathName(request_attr_list[1]) # type: ignore
                 result = fs_delete_file(FILE_SYSTEM, file)
-                client_socket.sendall(bytes(f"{request_data}:{str(int(result))}", "UTF-8"))
+                response_data = f"{request_data}:{str(int(result))}"
+                client_socket.sendall(bytes(response_data, "UTF-8"))
+                print("sent ", repr(response_data), " successfully.")
             case Command.CHANGE_BLOCK.value:
                 print("CHANGE_BLOCK", request_attr_list)
             case _:

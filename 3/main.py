@@ -1,8 +1,4 @@
-import random
-import socket
-
-from constants import BYTE_BLOCK_LENGTH
-from helpers import Command, delete_file, get_config, get_file_data, has_file_in_db, parse_args_main, get_db, set_db
+from helpers import Command, delete_file, get_config, get_file_data, has_file_in_db, parse_args_main, get_db, set_db, write_file
 from type import DataBaseBlockId, DataBaseFile, DataBaseHost
 
 
@@ -36,39 +32,16 @@ def main():
             
             assert host_list is not None, "Вы не указали атрибут --host-list"
 
-            host_sockets: dict[str,socket.SocketType] = {}
-            for host in host_list:
-                address, port = host.split(":")
-
-                s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
-                try:
-                    s.connect((address, int(port)))
-                    host_sockets[host] = s
-                except BlockingIOError as e:
-                    print("Ошибка подключения")
-
-            with file_source as f:
-                file_source_string = f.read(2048)
-                block_list = [file_source_string[start:start + BYTE_BLOCK_LENGTH] for start in range(0, len(file_source_string), BYTE_BLOCK_LENGTH)]
-
-            block_count = len(block_list)
-            db_file: DataBaseFile = DataBaseFile({})
-            for index, block in enumerate(block_list):
-                host = DataBaseHost(random.choice(host_list))
-                block_id = DataBaseBlockId(f"{block_count}:{index + 1}")
-                request_data = f"{Command.WRITE.value}:{file}:{block_id}:{block}"
-                host_sockets[host].send(bytes(request_data, 'UTF-8'))
-
-                if host not in db_file:
-                    db_file[host] = []
-                db_file[host].append(block_id)
+            db_file = write_file(file, file_source, host_list)
+            if db_file is None:
+                print(f"Файл {file} не был записан")
+                return
             
             db = get_db()
-            
             db[file] = db_file
-            
             set_db(db)
+            
+            print(f"Файл {file} был записан")
         case Command.DELETE.value:
             assert file is not None, "Вы не указали атрибут --file"
 

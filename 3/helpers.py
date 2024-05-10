@@ -4,11 +4,12 @@ from enum import Enum
 from functools import reduce
 from io import TextIOWrapper
 import json
+import random
 import socket
 import time
 
-from constants import DB_PATH_NAME
-from type import DataBase, DataBaseFile, DataBaseFilePathName, FileSystem, FileSystemBlockId, FileSystemFilePathName
+from constants import BYTE_BLOCK_LENGTH, DB_PATH_NAME
+from type import DataBase, DataBaseBlockId, DataBaseFile, DataBaseFilePathName, DataBaseHost, FileSystem, FileSystemBlockId, FileSystemFilePathName
 
 
 def get_config() -> dict:
@@ -99,6 +100,44 @@ def delete_file(file: str, db_file: DataBaseFile) -> bool:
     return result
 
 
+def write_file(file: DataBaseFilePathName, file_source: TextIOWrapper, host_list: list[str]) -> DataBaseFile | None:
+    host_sockets: dict[str,socket.SocketType] = {}
+    for host in host_list:
+        address, port = host.split(":")
+
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+        try:
+            s.connect((address, int(port)))
+            host_sockets[host] = s
+        except BlockingIOError as e:
+            print("Ошибка подключения")
+
+    with file_source as f:
+        file_source_string = f.read(2048)
+        block_list = [file_source_string[start:start + BYTE_BLOCK_LENGTH] for start in range(0, len(file_source_string), BYTE_BLOCK_LENGTH)]
+
+    block_count = len(block_list)
+    db_file: DataBaseFile = DataBaseFile({})
+    for index, block in enumerate(block_list):
+        host = DataBaseHost(random.choice(host_list))
+        block_id = DataBaseBlockId(f"{block_count}:{index + 1}")
+        request_data = f"{Command.WRITE.value}:{file}:{block_id}:{block}"
+        host_sockets[host].send(bytes(request_data, 'UTF-8'))
+        
+        response_data = s.recv(2048).decode("UTF-8")
+        is_wrote = bool(int(response_data.split(":").pop()))
+        
+        if not is_wrote:
+            break
+
+        if host not in db_file:
+            db_file[host] = []
+        db_file[host].append(block_id)
+
+    return db_file
+
+
 class Command(Enum):
     HAS = 'has'
     READ = 'read'
@@ -174,8 +213,9 @@ def fs_read_file_block(fs: FileSystem, file: FileSystemFilePathName, file_block_
 
 
 def fs_write_file_block(fs: FileSystem, file: FileSystemFilePathName,
-                        file_block_id: FileSystemBlockId, file_block_data: bytes):
+                        file_block_id: FileSystemBlockId, file_block_data: bytes) -> bool:
     if file not in fs:
         fs[file] = {}
 
     fs[file][file_block_id] = file_block_data
+    return True
