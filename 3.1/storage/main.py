@@ -2,8 +2,8 @@ from fastapi import FastAPI, File, Request, Depends
 from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
-from . import models, crud
-from .database import SessionLocal, engine
+from storage import models, crud
+from storage.database import SessionLocal, engine
 
 
 class RawResponse(Response):

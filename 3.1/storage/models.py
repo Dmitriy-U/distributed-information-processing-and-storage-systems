@@ -11,7 +11,11 @@ class File(Base):
 
     path_name = Column(String, unique=True, primary_key=True)
 
-    blocks = relationship("Block", cascade="all,delete", back_populates="file")
+    blocks = relationship(
+        "Block",
+        cascade="all,delete",
+        back_populates="file"
+    )
 
 
 class Block(Base):
