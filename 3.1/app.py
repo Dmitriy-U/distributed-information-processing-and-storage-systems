@@ -2,7 +2,7 @@ from app.models import Base
 from app.crud import db_delete_file, db_get_file_blocks, db_get_file_storages
 from app.constants import BYTE_BLOCK_LENGTH
 from app.database import SessionLocal, engine
-from app.helpers import Command, get_config, get_file_data, parse_args_main, storage_delete_file
+from app.helpers import Command, get_config, get_file_data, parse_args_main, storage_delete_file, write_file
 
 
 Base.metadata.create_all(bind=engine)
@@ -32,14 +32,12 @@ def main():
             
             assert host_list is not None, "Вы не указали атрибут --host-list"
 
-            # db_file = write_file(file, file_source, host_list)
-            # if db_file is None:
-            #     print(f"Файл {file} не был записан")
-            #     return
-            
-            # db = get_db()
-            # db[file] = db_file
-            # set_db(db)
+            with SessionLocal() as session:
+                write_success = write_file(session, file, file_source, host_list)
+
+            if not write_success:
+                print(f"Файл {file} не был записан")
+                return
             
             print(f"Файл {file} был записан")
         case Command.DELETE.value:

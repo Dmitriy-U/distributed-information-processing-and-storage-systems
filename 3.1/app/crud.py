@@ -30,3 +30,31 @@ def db_delete_file(db: Session, path_name: str):
         db.delete(file)
         db.execute(delete(Block).where(Block.file_path_name == path_name))
         db.commit()
+
+
+def db_insert_file_if_not_exist(db: Session, path_name: str):
+    file = db.query(File).filter(File.path_name == path_name).first()
+    
+    if file is None:
+        file = File(path_name=path_name)
+        db.add(file)
+        db.commit()
+
+
+def db_insert_storage_if_not_exist(db: Session, storage_address: str):
+    storage = db.query(Storage).filter(Storage.address == storage_address).first()
+    
+    if storage is None:
+        storage = Storage(address=storage_address)
+        db.add(storage)
+        db.commit()
+
+
+def db_bulk_insert_storages(db: Session, storages: list[Storage]):
+    db.bulk_insert_mappings(Storage, [{"address": storage.address} for storage in storages])
+    db.commit()
+
+
+def db_bulk_insert_blocks(db: Session, blocks: list[Block]):
+    db.bulk_insert_mappings(Block, [{"id": block.id, "file_path_name": block.file_path_name, "storage_address": block.storage_address} for block in blocks])
+    db.commit()

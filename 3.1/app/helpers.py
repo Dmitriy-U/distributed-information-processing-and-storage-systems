@@ -1,20 +1,20 @@
+import json
+import random
+import requests
 import argparse
 
 from enum import Enum
-from functools import reduce
 from io import TextIOWrapper
-import json
-import random
-import socket
-import requests
+from functools import reduce
+from sqlalchemy.orm import Session
 
-from app.models import Block
-
-from .constants import BYTE_BLOCK_LENGTH
+from app.crud import db_bulk_insert_blocks, db_bulk_insert_storages, db_insert_file_if_not_exist, db_insert_storage_if_not_exist
+from app.models import Block, Storage
+from app.constants import BYTE_BLOCK_LENGTH
 
 
 def get_config() -> dict:
-    with open('config.json', 'r') as f:
+    with open('app/config.json', 'r') as f:
         config_string = f.read()
     
     return json.loads(config_string)
@@ -55,42 +55,29 @@ def storage_delete_file(file_path_name: str, storage_addresses: set[str]) -> boo
     return True
 
 
-# def write_file(file: DataBaseFilePathName, file_source: TextIOWrapper, host_list: list[str]) -> DataBaseFile | None:
-#     host_sockets: dict[str,socket.SocketType] = {}
-#     for host in host_list:
-#         address, port = host.split(":")
+def write_file(session: Session, file: str, file_source: TextIOWrapper, host_list: list[str]) -> bool:
+    with file_source as f:
+        file_source_string = f.read(2048).encode()
+        block_list = [file_source_string[start:start + BYTE_BLOCK_LENGTH] for start in range(0, len(file_source_string), BYTE_BLOCK_LENGTH)]
 
-#         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
-#         try:
-#             s.connect((address, int(port)))
-#             host_sockets[host] = s
-#         except BlockingIOError as e:
-#             print("Ошибка подключения")
-
-#     with file_source as f:
-#         file_source_string = f.read(2048)
-#         block_list = [file_source_string[start:start + BYTE_BLOCK_LENGTH] for start in range(0, len(file_source_string), BYTE_BLOCK_LENGTH)]
-
-#     block_count = len(block_list)
-#     db_file: DataBaseFile = DataBaseFile({})
-#     for index, block in enumerate(block_list):
-#         host = DataBaseHost(random.choice(host_list))
-#         block_id = DataBaseBlockId(f"{block_count}:{index + 1}")
-#         request_data = f"{Command.WRITE.value}:{file}:{block_id}:{block}"
-#         host_sockets[host].send(bytes(request_data, 'UTF-8'))
+    block_count = len(block_list)
+    db_block_list: list[Block] = []
+    for index, block in enumerate(block_list):
+        host = random.choice(host_list)
+        block_id = f"{block_count}:{index + 1}"
+        response = requests.post(f'http://{host}/{file}/{block_id}', block)
+        if response.status_code != 201:
+            return False
         
-#         response_data = s.recv(2048).decode("UTF-8")
-#         is_wrote = bool(int(response_data.split(":").pop()))
-        
-#         if not is_wrote:
-#             break
+        db_block_list.append(Block(id=block_id, file_path_name=file, storage_address=host))
+    
+    db_insert_file_if_not_exist(session, file)
+    for storage_address in host_list:
+        db_insert_storage_if_not_exist(session, storage_address)
 
-#         if host not in db_file:
-#             db_file[host] = []
-#         db_file[host].append(block_id)
+    db_bulk_insert_blocks(session, db_block_list)
 
-#     return db_file
+    return True
 
 
 # def change_block_file(db_file: DataBaseFile, file: DataBaseFilePathName, block: int, block_data: bytes) -> bool:
