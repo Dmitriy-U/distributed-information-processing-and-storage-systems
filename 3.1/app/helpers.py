@@ -20,7 +20,7 @@ def get_config() -> dict:
     return json.loads(config_string)
 
 
-def concatenate_bytes(x: bytes, y: bytes) -> bytes:
+def _concatenate_bytes(x: bytes, y: bytes) -> bytes:
     return x + y
 
 
@@ -42,31 +42,17 @@ def get_file_data(block_list: list[Block]) -> bytes:
     block_items = list(dict(sorted(result_blocks.items())).values())
     assert len(block_items) == file_block_count, f"Отстутствуют блоки файлов"
 
-    return reduce(concatenate_bytes, block_items)
+    return reduce(_concatenate_bytes, block_items)
 
 
-# def delete_file(file: str, db_file: DataBaseFile) -> bool:
-#     db_host_list = db_file.keys()
+def storage_delete_file(file_path_name: str, storage_addresses: set[str]) -> bool:
+    try:
+        for storage_address in storage_addresses:
+            requests.delete(f'http://{storage_address}/{file_path_name}')
+    except requests.exceptions.ConnectionError as e:
+        return False
 
-#     result = True
-#     for db_host in db_host_list:
-#         host, port = db_host.split(":")
-
-#         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-#             try:
-#                 s.connect((host, int(port)))
-#             except BlockingIOError as e:
-#                 print("BlockingIOError")
-
-#             s.sendall(bytes(f"{Command.DELETE.value}:{file}", 'UTF-8'))
-            
-#             response_data = s.recv(2048).decode("UTF-8")
-    
-#         is_deleted = bool(int(response_data.split(":").pop()))
-#         if not is_deleted:
-#             result = False
-
-#     return result
+    return True
 
 
 # def write_file(file: DataBaseFilePathName, file_source: TextIOWrapper, host_list: list[str]) -> DataBaseFile | None:

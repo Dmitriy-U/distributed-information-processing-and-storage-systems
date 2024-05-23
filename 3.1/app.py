@@ -1,10 +1,8 @@
-from fastapi import File
-
 from app.models import Base
-from app.crud import get_file_blocks
+from app.crud import db_delete_file, db_get_file_blocks, db_get_file_storages
 from app.constants import BYTE_BLOCK_LENGTH
 from app.database import SessionLocal, engine
-from app.helpers import Command, get_config, get_file_data, parse_args_main
+from app.helpers import Command, get_config, get_file_data, parse_args_main, storage_delete_file
 
 
 Base.metadata.create_all(bind=engine)
@@ -18,8 +16,7 @@ def main():
             assert file is not None, "Вы не указали атрибут --file"
             
             with SessionLocal() as session:
-                db_file_blocks = get_file_blocks(session, file)
-
+                db_file_blocks = db_get_file_blocks(session, file)
             
             assert len(db_file_blocks) > 0, f"Файл {file} отсутствует"
 
@@ -48,17 +45,19 @@ def main():
         case Command.DELETE.value:
             assert file is not None, "Вы не указали атрибут --file"
 
-            # db = get_db()
-            # db_file = db.get(file, None)
+            with SessionLocal() as session:
+                db_file_blocks = db_get_file_storages(session, file)
+                
+                storage_addresses: set[str] = set()
+                for block in db_file_blocks:
+                    storage_addresses.add(block[0])
+                    
+                is_deleted = storage_delete_file(file, storage_addresses)
+                
+                if is_deleted:
+                    db_delete_file(session, file)
             
-            # assert db_file is not None, f"Файл {file} отсутствует"
-            
-            # is_deleted = delete_file(file, db_file)
-            
-            # del db[file]
-            # set_db(db)
-            
-            # print(f"Файл удалён" if is_deleted else f"Файл не был удалён")
+            print(f"Файл {file} удалён" if is_deleted else f"Файл {file} не был удалён")
         case Command.CHANGE_BLOCK.value:
             assert file is not None, "Вы не указали атрибут --file"
             assert block is not None, "Вы не указали атрибут --block"
