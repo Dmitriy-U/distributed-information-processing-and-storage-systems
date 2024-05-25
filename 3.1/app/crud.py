@@ -16,6 +16,17 @@ def db_get_file_blocks(db: Session, path_name: str):
     ).all()
 
 
+def db_get_file_block(db: Session, path_name: str, block_id: str) -> Block | None:
+    try:
+        return db.query(Block).where(Block.file_path_name == path_name).where(Block.id == block_id).join(
+            Storage,
+            Block.storage_address == Storage.address,
+            isouter=True
+        ).one()
+    except Exception as e:
+        return None
+
+
 def db_get_file_storages(db: Session, path_name: str):
     return db.query(Block.storage_address.distinct()).filter(
         Block.file_path_name == path_name

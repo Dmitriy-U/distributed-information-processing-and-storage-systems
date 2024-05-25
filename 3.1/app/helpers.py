@@ -8,8 +8,8 @@ from io import TextIOWrapper
 from functools import reduce
 from sqlalchemy.orm import Session
 
-from app.crud import db_bulk_insert_blocks, db_bulk_insert_storages, db_insert_file_if_not_exist, db_insert_storage_if_not_exist
-from app.models import Block, Storage
+from app.crud import db_bulk_insert_blocks, db_insert_file_if_not_exist, db_insert_storage_if_not_exist
+from app.models import Block
 from app.constants import BYTE_BLOCK_LENGTH
 
 
@@ -55,6 +55,15 @@ def storage_delete_file(file_path_name: str, storage_addresses: set[str]) -> boo
     return True
 
 
+def storage_change_File_block(block: Block, block_data: bytes) -> bool:
+    try:
+        response = requests.put(f'http://{block.storage_address}/{block.file_path_name}/{block.id}', block_data)
+    except requests.exceptions.ConnectionError as e:
+        return False
+
+    return True
+
+
 def write_file(session: Session, file: str, file_source: TextIOWrapper, host_list: list[str]) -> bool:
     with file_source as f:
         file_source_string = f.read(2048).encode()
@@ -80,34 +89,6 @@ def write_file(session: Session, file: str, file_source: TextIOWrapper, host_lis
     return True
 
 
-# def change_block_file(db_file: DataBaseFile, file: DataBaseFilePathName, block: int, block_data: bytes) -> bool:
-#     block_changed = False
-#     for host in db_file:
-#         print(host)
-#         for block_id in db_file[host]:
-#             _, block_local = block_id.split(":")
-#             block_local = int(block_local)
-#             if block == block_local:
-                
-#                 address, port = host.split(":")
-
-#                 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
-#                 try:
-#                     s.connect((address, int(port)))
-#                 except BlockingIOError as e:
-#                     print("Ошибка подключения")
-                
-#                 request_data = f"{Command.CHANGE_BLOCK.value}:{file}:{block_local}:{block_data}"
-#                 s.send(bytes(request_data, 'UTF-8'))
-                
-#                 response_data = s.recv(2048).decode("UTF-8")
-#                 block_changed = bool(int(response_data.split(":").pop()))
-#                 break
-
-#     return block_changed
-
-
 class Command(Enum):
     READ = 'read'
     WRITE = 'write'
@@ -119,23 +100,25 @@ class Command(Enum):
         return list(map(lambda c: c.value, cls))
 
 
-def parse_args_main() -> tuple[Command, None | str, None | TextIOWrapper, None | int, None | bytes]:
+def parse_args_main() -> tuple[Command, None | str, None | TextIOWrapper, None | str, None | int, None | bytes]:
     parser = argparse.ArgumentParser(prog="main.py", description="Распределённая файловая система")
     parser.add_argument('--command', '-C', help='команда', choices=Command.list(), required=True)
-    parser.add_argument('--file', '-F', metavar="path", help="файл", type=str)
-    parser.add_argument('--file-source', '-FS', metavar="path", help="файл записываемый", type=open)
-    parser.add_argument('--block', '-B', metavar="NUMBER", help='номер блока', type=int)
+    parser.add_argument('--file-path', '-F', metavar="path", help="файл", type=str)
+    parser.add_argument('--input', '-I', metavar="path", help="файл источник", type=open)
+    parser.add_argument('--output', '-O', metavar="path", help="файл для сохранения", type=str)
+    parser.add_argument('--block-id', '-B', metavar="STRING", help='идентификатор блока (35:13)', type=str)
     parser.add_argument('--block-data', '-BD', metavar="BLOB", help='данные блока', type=str)
     args = parser.parse_args()
 
     command: Command = args.command
-    file: None | str = args.file
+    file_path: None | str = args.file_path
 
-    file_source: None | TextIOWrapper = args.file_source
-    block: None | int = args.block
+    input: None | TextIOWrapper = args.input
+    output: None | str = args.output
+    block_id: None | int = args.block_id
     block_data: None | bytes = args.block_data
 
-    return command, file, file_source, block, block_data
+    return command, file_path, input, output, block_id, block_data
 
 
 def parse_args_storaging() -> tuple[None | str, None | int]:
@@ -149,59 +132,3 @@ def parse_args_storaging() -> tuple[None | str, None | int]:
     port: None | int = args.port
 
     return host, port
-
-
-# def fs_has(fs: FileSystem, file: FileSystemFilePathName) -> bool:
-#     return file in fs
-
-
-# def fs_delete_file(fs: FileSystem, file: FileSystemFilePathName) -> bool:
-#     if file in fs:
-#         del fs[file]
-#         return True
-#     else:
-#         return False
-
-
-# def fs_read_file_blocks(fs: FileSystem, file: FileSystemFilePathName) -> dict[FileSystemBlockId, bytes] | None:
-#     if fs_has(fs, file):
-#         return fs[file]
-#     else:
-#         return None
-
-
-# def fs_read_file_block(cur: Cursor, file: FileSystemFilePathName, file_block_id: FileSystemBlockId) -> bytes | None:
-#     res = cur.execute(f'SELECT data FROM blocks WHERE file = "{file}" AND block = "{file_block_id}"')
-#     result: None | tuple[bytes] = res.fetchone()
-#     print('result', result)
-#     if result is None:
-#         return None
-#     else:
-#         return result[0]
-
-
-# def fs_write_file_block(cur: Cursor, file: FileSystemFilePathName,
-#                         file_block_id: FileSystemBlockId, file_block_data: bytes) -> bool:
-#     res = cur.execute(f'INSERT INTO files (file_path) VALUES("{file}")')
-#     res = cur.execute(f'INSERT INTO blocks (block, file, data) VALUES("{file_block_id}", "{file}", "{file_block_data}")')
-#     result = res.fetchall()
-#     print('result', result)
-
-#     return True
-
-
-# def fs_write_file_block_by_block_number(fs: FileSystem, file: FileSystemFilePathName,
-#                         file_block_number: int, file_block_data: bytes) -> bool:
-#     if file not in fs:
-#         return False
-    
-#     result = False
-#     for file_block_id in fs[file].keys():
-#         print(file_block_id)
-#         _, block_number = file_block_id.split(":")
-#         if int(block_number) == file_block_number:
-#             fs[file][file_block_id] = file_block_data
-#             result = True
-#             break
-
-#     return result

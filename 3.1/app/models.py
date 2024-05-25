@@ -11,7 +11,12 @@ class File(Base):
 
     path_name = Column(String, unique=True, primary_key=True)
 
-    blocks = relationship("Block", cascade="all, delete", back_populates="file", passive_deletes=True)
+    blocks = relationship(
+        "Block",
+        cascade="all, delete",
+        back_populates="file",
+        passive_deletes=True
+    )
 
 
 class Storage(Base):
@@ -38,6 +43,6 @@ class Block(Base):
     file = relationship("File", back_populates="blocks")
     storage = relationship("Storage", back_populates="blocks")
     
-    # __table_args__ = (
-    #     UniqueConstraint('id', 'file_path_name', name='_file_path_name_block_id'),
-    # )
+    __table_args__ = (
+        UniqueConstraint('id', 'file_path_name', name='_file_path_name_block_id'),
+    )
