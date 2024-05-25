@@ -16,7 +16,7 @@ from app.constants import BYTE_BLOCK_LENGTH
 def get_config() -> dict:
     with open('app/config.json', 'r') as f:
         config_string = f.read()
-    
+
     return json.loads(config_string)
 
 
@@ -30,13 +30,13 @@ def get_file_data(block_list: list[Block]) -> bytes:
 
     for block in block_list:
         host, port = str(block.storage_address).split(":")
-        
+
         if file_block_count is None:
-            block_count, _ =str(block.id).split(":")
+            block_count, _ = str(block.id).split(":")
             file_block_count = int(block_count)
 
         response = requests.get(f'http://{host}:{port}/{block.file_path_name}/{block.id}')
-        
+
         result_blocks[block.id] = response.content
 
     block_items = list(dict(sorted(result_blocks.items())).values())
@@ -55,7 +55,7 @@ def storage_delete_file(file_path_name: str, storage_addresses: set[str]) -> boo
     return True
 
 
-def storage_change_File_block(block: Block, block_data: bytes) -> bool:
+def storage_change_file_block(block: Block, block_data: bytes) -> bool:
     try:
         response = requests.put(f'http://{block.storage_address}/{block.file_path_name}/{block.id}', block_data)
     except requests.exceptions.ConnectionError as e:
@@ -64,23 +64,24 @@ def storage_change_File_block(block: Block, block_data: bytes) -> bool:
     return True
 
 
-def write_file(session: Session, file: str, file_source: TextIOWrapper, host_list: list[str]) -> bool:
-    with file_source as f:
-        file_source_string = f.read(2048).encode()
-        block_list = [file_source_string[start:start + BYTE_BLOCK_LENGTH] for start in range(0, len(file_source_string), BYTE_BLOCK_LENGTH)]
+def write_file(session: Session, file_path_name: str, file_source: TextIOWrapper, host_list: list[str]) -> bool:
+    with file_source as file:
+        file_source_string = file.read(2048).encode()
+        block_list = [file_source_string[start:start + BYTE_BLOCK_LENGTH] for start in
+                      range(0, len(file_source_string), BYTE_BLOCK_LENGTH)]
 
     block_count = len(block_list)
     db_block_list: list[Block] = []
     for index, block in enumerate(block_list):
         host = random.choice(host_list)
         block_id = f"{block_count}:{index + 1}"
-        response = requests.post(f'http://{host}/{file}/{block_id}', block)
+        response = requests.post(f'http://{host}/{file_path_name}/{block_id}', block)
         if response.status_code != 201:
             return False
-        
-        db_block_list.append(Block(id=block_id, file_path_name=file, storage_address=host))
-    
-    db_insert_file_if_not_exist(session, file)
+
+        db_block_list.append(Block(id=block_id, file_path_name=file_path_name, storage_address=host))
+
+    db_insert_file_if_not_exist(session, file_path_name)
     for storage_address in host_list:
         db_insert_storage_if_not_exist(session, storage_address)
 

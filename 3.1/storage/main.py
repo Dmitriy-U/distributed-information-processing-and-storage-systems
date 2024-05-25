@@ -1,4 +1,4 @@
-from fastapi import FastAPI, File, Request, Depends
+from fastapi import FastAPI, Request, Depends
 from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
@@ -10,9 +10,11 @@ class RawResponse(Response):
     media_type = "binary/octet-stream"
 
     def render(self, content: bytes) -> bytes:
-        return bytes([b ^ 0x54 for b in content])
+        return content
+
 
 models.Base.metadata.create_all(bind=engine)
+
 
 def get_db():
     db = SessionLocal()
@@ -28,7 +30,6 @@ app = FastAPI()
 @app.get("/{file_path_name}/{block_id}", response_class=RawResponse)
 async def read_block_of_file(file_path_name: str, block_id: str, db: Session = Depends(get_db)):
     block = crud.get_block(db, block_id, file_path_name)
-    
     if block:
         return RawResponse(content=block.data)
     else:
@@ -44,7 +45,7 @@ async def write_block_of_file(file_path_name: str, block_id: str, request: Reque
 
 
 @app.put("/{file_path_name}/{block_id}")
-async def change_block_of_file(file_path_name: str, block_id: str,  request: Request, db: Session = Depends(get_db)):
+async def change_block_of_file(file_path_name: str, block_id: str, request: Request, db: Session = Depends(get_db)):
     block_data = await request.body()
     crud.update_block(db, block_id, block_data, file_path_name)
 

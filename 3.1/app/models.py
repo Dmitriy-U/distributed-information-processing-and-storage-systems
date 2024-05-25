@@ -29,7 +29,7 @@ class Storage(Base):
 
 class Block(Base):
     __tablename__ = "blocks"
-    
+
     __mapper_args__ = {
         'polymorphic_identity': 'block',
         'confirm_deleted_rows': False
@@ -42,7 +42,7 @@ class Block(Base):
 
     file = relationship("File", back_populates="blocks")
     storage = relationship("Storage", back_populates="blocks")
-    
+
     __table_args__ = (
         UniqueConstraint('id', 'file_path_name', name='_file_path_name_block_id'),
     )

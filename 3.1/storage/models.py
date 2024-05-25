@@ -28,8 +28,7 @@ class Block(Base):
     file_path_name = Column(String, ForeignKey("files.path_name", ondelete="CASCADE"))
 
     file = relationship("File", back_populates="blocks")
-    
+
     __table_args__ = (
         UniqueConstraint('id', 'file_path_name', name='_file_path_name_block_id'),
     )
-    
