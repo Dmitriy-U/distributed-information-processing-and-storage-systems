@@ -32,7 +32,6 @@ def main():
         case Command.WRITE.value:
             assert file_path is not None, "Вы не указали атрибут --file-path"
             assert input_file_data is not None, "Вы не указали атрибут --input"
-            print(input_file_data)
             config = get_config()
             host_list: list[str] = config.get('hostList', None)
 

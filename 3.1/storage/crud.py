@@ -28,6 +28,7 @@ def delete_file(db: Session, path_name: str):
         db.delete(file)
 
         db.execute(delete(models.Block).where(models.Block.file_path_name == path_name))
+        db.commit()
 
 
 def get_block(db: Session, block_id: str, file_path_name: str):
@@ -55,6 +56,7 @@ def update_block(db: Session, block_id: str, block_data: bytes, file_path_name: 
 
     if block:
         block.data = block_data
+        db.commit()
         db.refresh(block)
         return block
 

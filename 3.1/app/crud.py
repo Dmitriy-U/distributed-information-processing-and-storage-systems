@@ -37,7 +37,6 @@ def db_delete_file(db: Session, path_name: str):
     file = db.query(File).filter(File.path_name == path_name).first()
 
     if file is not None:
-        print(file.blocks)
         db.delete(file)
         db.execute(delete(Block).where(Block.file_path_name == path_name))
         db.commit()
