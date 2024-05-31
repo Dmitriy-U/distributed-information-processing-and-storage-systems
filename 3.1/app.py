@@ -23,7 +23,7 @@ def main():
             file_data = get_file_data(db_file_blocks)
 
             if output is None:
-                print(file_data.decode())
+                print(file_data)
             else:
                 with open(output, 'wb') as file:
                     file.write(file_data)
@@ -71,17 +71,16 @@ def main():
             assert len(block_data) == BYTE_BLOCK_LENGTH, f"Длина блока должна составлять {BYTE_BLOCK_LENGTH} символов"
 
             with SessionLocal() as session:
-                db_file_block = db_get_file_block(session, file_path, block_id)
+                db_file_block = db_get_file_block(session, file_path, str(block_id))
 
             assert db_file_block is not None, f"Файл {file_path} отсутствует"
 
-            result = storage_change_file_block(db_file_block, block_data)
-            # block_changed = change_block_file(db_file, file, block, block_data)
+            block_changed = storage_change_file_block(db_file_block, block_data)
 
-            # if block_changed:
-            #     print(f"Блок {block} файла {file} изменён")
-            # else:
-            #     print(f"Блок {block} файла {file} не изменён")
+            if block_changed:
+                print(f"Блок {block_id} файла {file_path} изменён")
+            else:
+                print(f"Блок {block_id} файла {file_path} не изменён")
 
 
 if __name__ == "__main__":

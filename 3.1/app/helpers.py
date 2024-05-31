@@ -3,6 +3,8 @@ import random
 import requests
 import argparse
 
+from collections import OrderedDict
+
 from enum import Enum
 from io import TextIOWrapper
 from functools import reduce
@@ -20,29 +22,28 @@ def get_config() -> dict:
     return json.loads(config_string)
 
 
-def _concatenate_bytes(x: bytes, y: bytes) -> bytes:
-    return x + y
-
-
 def get_file_data(block_list: list[Block]) -> bytes:
     result_blocks: dict[str | int, bytes] = {}
     file_block_count: None | int = None
 
     for block in block_list:
-        host, port = str(block.storage_address).split(":")
+        _, block_number = block.id.split(":")
 
         if file_block_count is None:
             block_count, _ = str(block.id).split(":")
             file_block_count = int(block_count)
 
-        response = requests.get(f'http://{host}:{port}/{block.file_path_name}/{block.id}')
+        response = requests.get(f'http://{block.storage_address}/{block.file_path_name}/{block.id}')
 
-        result_blocks[block.id] = response.content
+        result_blocks[block_number] = response.content
 
-    block_items = list(dict(sorted(result_blocks.items())).values())
-    assert len(block_items) == file_block_count, f"Отстутствуют блоки файлов"
+    result_ordered_block_list = OrderedDict(result_blocks).items()
+    assert len(result_ordered_block_list) == file_block_count, f"Отстутствуют блоки файлов"
 
-    return reduce(_concatenate_bytes, block_items)
+    file_data: bytes = b''
+    for _, block_data in result_ordered_block_list:
+        file_data += block_data
+    return file_data
 
 
 def storage_delete_file(file_path_name: str, storage_addresses: set[str]) -> bool:
@@ -64,9 +65,9 @@ def storage_change_file_block(block: Block, block_data: bytes) -> bool:
     return True
 
 
-def write_file(session: Session, file_path_name: str, file_source: TextIOWrapper, host_list: list[str]) -> bool:
-    with file_source as file:
-        file_source_string = file.read(2048).encode()
+def write_file(session: Session, file_path_name: str, file_source: str, host_list: list[str]) -> bool:
+    with open(file_source, 'rb') as file:
+        file_source_string = file.read()
         block_list = [file_source_string[start:start + BYTE_BLOCK_LENGTH] for start in
                       range(0, len(file_source_string), BYTE_BLOCK_LENGTH)]
 
@@ -101,11 +102,11 @@ class Command(Enum):
         return list(map(lambda c: c.value, cls))
 
 
-def parse_args_main() -> tuple[Command, None | str, None | TextIOWrapper, None | str, None | int, None | bytes]:
+def parse_args_main() -> tuple[Command, None | str, None | str, None | str, None | int, None | bytes]:
     parser = argparse.ArgumentParser(prog="main.py", description="Распределённая файловая система")
     parser.add_argument('--command', '-C', help='команда', choices=Command.list(), required=True)
     parser.add_argument('--file-path', '-F', metavar="path", help="файл", type=str)
-    parser.add_argument('--input', '-I', metavar="path", help="файл источник", type=open)
+    parser.add_argument('--input', '-I', metavar="path", help="файл источник", type=str)
     parser.add_argument('--output', '-O', metavar="path", help="файл для сохранения", type=str)
     parser.add_argument('--block-id', '-B', metavar="STRING", help='идентификатор блока (35:13)', type=str)
     parser.add_argument('--block-data', '-BD', metavar="BLOB", help='данные блока', type=str)
