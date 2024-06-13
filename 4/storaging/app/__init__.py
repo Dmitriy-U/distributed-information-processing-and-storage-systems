@@ -3,7 +3,7 @@ import json
 
 from fastapi import FastAPI
 
-from .helpers import get_self_ip_address, get_hash
+from helpers import get_self_ip_address, get_hash
 
 UDP_PORT = 9000
 IP_ADDRESS = get_self_ip_address()
