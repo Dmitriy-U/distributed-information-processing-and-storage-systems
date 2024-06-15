@@ -3,15 +3,17 @@ import json
 
 from fastapi import FastAPI
 
-from helpers import get_self_ip_address, get_hash
-
-from .crud import create_node
+from .database import SessionLocal, Base, engine
+from .crud import create_node_if_not_exist
+from ..helpers import get_self_ip_address, get_hash
 
 UDP_PORT = 9000
 IP_ADDRESS = get_self_ip_address()
 
 
 app = FastAPI()
+
+Base.metadata.create_all(bind=engine)
 
 
 @app.get("/")
@@ -27,7 +29,10 @@ def read_item(item_id: int, q: str | None = None):
 @app.on_event("startup")
 async def startup_event():
     ip_address = get_self_ip_address()
-    create_node()
+
+    with SessionLocal() as session:
+        create_node_if_not_exist(session, ip_address)
+
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     advertise = {
         "hash": get_hash(ip_address.encode()),
