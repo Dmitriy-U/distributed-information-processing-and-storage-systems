@@ -12,4 +12,4 @@ def get_self_ip_address(remote_server="google.com") -> str:
 
 
 def get_hash(string: bytes) -> int:
-    return int(hashlib.sha1(string).hexdigest(), 16)
+    return int(hashlib.sha1(string).hexdigest(), 16) % (10 ** 9)
