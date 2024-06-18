@@ -2,29 +2,20 @@ import socket
 import json
 # import asyncio
 
-from fastapi import FastAPI, Response, Depends, Request
-from pydantic import BaseModel
+from fastapi import FastAPI, Depends, Request
+from fastapi.responses import Response
 
+from .constants import IP_ADDRESS, UDP_PORT
 from .database import SessionLocal, Base, engine
 from .crud import create_node_if_not_exist
 from .helpers import get_self_ip_address, get_hash, to_camel_case
-
-UDP_PORT = 9000
-IP_ADDRESS = get_self_ip_address()
+from .responses import OctetStreamResponse
+from .schemas import NodeRequestData
 
 app = FastAPI()
 
 Base.metadata.create_all(bind=engine)
 
-
-class OctetStreamResponse(Response):
-    media_type = "application/octet-stream"
-
-    def render(self, content: bytes) -> bytes:
-        return content
-
-
-test = OctetStreamResponse()
 
 # class SyslogProtocol(asyncio.DatagramProtocol):
 #     def __init__(self):
@@ -38,43 +29,28 @@ test = OctetStreamResponse()
 #         print(f"Received Syslog message: {data}")
 
 
-class NodeRequestData(BaseModel):
-    ip_list: list[str]
-
-    model_config = {
-        "alias_generator": to_camel_case,
-        "json_schema_extra": {
-            "examples": [
-                {
-                    "ipList": ["127.0.0.1", "192.168.68.255"],
-                }
-            ]
-        }
-    }
-
-
 async def parse_body(request: Request):
     data: bytes = await request.body()
     return data
 
 
-@app.put("/nodes")
-async def update_nodes(nodes: NodeRequestData):
+@app.put("/nodes", tags=["Ноды"])
+async def nodes_update(nodes: NodeRequestData):
     print('-->', nodes)
     # Will have done
 
 
-@app.get("/keys/{key_hash}", response_class=OctetStreamResponse)
-def read_item(key_hash: int):
+@app.get("/keys/{key_hash}", tags=["Ключи"], response_class=OctetStreamResponse)
+async def keys_get(key_hash: int):
     print('-->', key_hash)
     return b"TODO"
 
 
-@app.post("/keys/{key_hash}", status_code=201)
-def read_item(key_hash: int, data: bytes = Depends(parse_body)):
+@app.post("/keys/{key_hash}", tags=["Ключи"], status_code=201, response_model=None)
+async def keys_set(key_hash: int, data: bytes = Depends(parse_body)) -> Response:
     print('-->', key_hash)
     # Will have done
-    return None
+    return Response(None)
 
 
 @app.on_event("startup")
