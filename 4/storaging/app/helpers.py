@@ -1,6 +1,8 @@
 import hashlib
 import socket
 
+from humps import camel
+
 
 def get_self_ip_address(remote_server="google.com") -> str:
     """
@@ -13,3 +15,7 @@ def get_self_ip_address(remote_server="google.com") -> str:
 
 def get_hash(string: bytes) -> int:
     return int(hashlib.sha1(string).hexdigest(), 16) % (10 ** 9)
+
+
+def to_camel_case(string):
+    return camel.case(string)
