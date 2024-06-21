@@ -2,12 +2,13 @@ import socket
 import json
 # import asyncio
 
-from fastapi import FastAPI, Depends, Request
+from fastapi import FastAPI, Request, Depends
 from fastapi.responses import Response
+from sqlalchemy.orm import Session
 
 from .constants import IP_ADDRESS, UDP_PORT
-from .database import SessionLocal, Base, engine
-from .crud import create_node_if_not_exist
+from .database import SessionLocal, Base, engine, get_db
+from .crud import create_node_if_not_exist, create_or_update_data_item
 from .helpers import get_self_ip_address, get_hash, to_camel_case
 from .responses import OctetStreamResponse
 from .schemas import NodeRequestData
@@ -29,28 +30,39 @@ Base.metadata.create_all(bind=engine)
 #         print(f"Received Syslog message: {data}")
 
 
+class RawResponse(Response):
+    media_type = "binary/octet-stream"
+
+    def render(self, content: bytes) -> bytes:
+        return bytes([b ^ 0x54 for b in content])
+
+
 async def parse_body(request: Request):
     data: bytes = await request.body()
     return data
 
 
-@app.put("/nodes", tags=["Ноды"])
+@app.put("/nodes", tags=["Ноды"], summary="Обновление нод")
 async def nodes_update(nodes: NodeRequestData):
     print('-->', nodes)
     # Will have done
 
 
-@app.get("/keys/{key_hash}", tags=["Ключи"], response_class=OctetStreamResponse)
+@app.get("/keys/{key_hash}", tags=["Ключи"], response_class=OctetStreamResponse, summary="Получить данные ключа")
 async def keys_get(key_hash: int):
     print('-->', key_hash)
     return b"TODO"
 
 
-@app.post("/keys/{key_hash}", tags=["Ключи"], status_code=201, response_model=None)
-async def keys_set(key_hash: int, data: bytes = Depends(parse_body)) -> Response:
-    print('-->', key_hash)
-    # Will have done
-    return Response(None)
+@app.post("/keys/{key_hash}", tags=["Ключи"], status_code=201, summary="Записать данные ключа")
+async def keys_set(key_hash: int, request: Request, db: Session = Depends(get_db)):
+    data = b''
+    async for chunk in request.stream():
+        data += chunk
+    # TODO: Will have done
+    create_or_update_data_item(db, key_hash, data)
+
+    return Response(status_code=201)
 
 
 @app.on_event("startup")
