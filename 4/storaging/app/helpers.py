@@ -4,15 +4,13 @@ import socket
 from humps import camel
 
 
-def get_self_ip_address(remote_server="google.com") -> str:
-    """
-    Получение собственного IP-адреса
-    remote_server: с помощью этого сервера мы узнаем свой адрес в ответе
-    """
+def get_self_ip_address() -> str:
+    """Получение собственного IP-адреса"""
 
-    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
-        s.connect((remote_server, 80))
-        return s.getsockname()[0]
+    hostname = socket.gethostname()
+    ip_address = socket.gethostbyname(hostname)
+
+    return ip_address
 
 
 def get_hash(string: bytes, hash_bit=8) -> int:
