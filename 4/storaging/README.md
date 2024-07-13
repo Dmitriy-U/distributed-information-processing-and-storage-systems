@@ -4,9 +4,9 @@
 
 ---
 
-## Запуск в *docker* контейнере
+## Запуск
 
-### Создание образа
+### Создание *docker* образа
 
 Запустите: `docker buildx build --tag <image_name> .`, где:
 
@@ -18,22 +18,34 @@
 docker buildx build --tag laboratory-4 .
 ```
 
-#### linux
+#### Linux
 
 ```shell
 docker build --tag laboratory-4 .
 ```
 
-### Создание и запуск контейнера
+### Запуск контейнеров
 
-Запустите: `docker run --name <container_name> -p <port>:9000 -d <image_name>`, где:
+```sh
+docker-compose up -d
+```
 
-- *container_name* - наименование контейнера,
-- *port* - номер порта на котором будет работать хранилище
-- *image_name* - наименование образа
+### Сеть
 
-```shell
-docker run --name laboratory-4-9000 -p 9000:9000 -d laboratory-4
+#### Просмотр всех сетей
+
+Выполните команду ниже. В списке должна быть сеть с наименованием `storaging_laboratory-4`
+
+```sh
+docker network ls
+```
+
+#### Просмотр всех адресов
+
+В блоке **Containers** будут контейнеры. Ip-адрес контейнера указан в поле **IPv4Address**
+
+```sh
+docker network inspect storaging_laboratory-4
 ```
 
 ---

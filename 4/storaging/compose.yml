@@ -1,0 +1,20 @@
+services:
+  node-1:
+    image: laboratory-4
+    container_name: laboratory-4-1
+    networks:
+      - laboratory-4
+  node-2:
+    image: laboratory-4
+    container_name: laboratory-4-2
+    networks:
+      - laboratory-4
+  node-3:
+    image: laboratory-4
+    container_name: laboratory-4-3
+    networks:
+      - laboratory-4
+
+networks:
+  laboratory-4:
+    driver: bridge
