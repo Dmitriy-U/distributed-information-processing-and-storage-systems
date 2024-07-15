@@ -5,7 +5,7 @@ from fastapi import FastAPI, Request, Depends
 from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
-from .constants import IP_ADDRESS, UDP_PORT, APP_KEY
+from .constants import IP_ADDRESS, UDP_PORT, APP_KEY, IP_ADDRESS_BROADCAST
 from .database import SessionLocal, Base, engine, get_db
 from .crud import create_node_if_not_exist, create_or_update_data_item
 from .helpers import get_self_ip_address, get_hash, to_camel_case
@@ -17,7 +17,7 @@ app = FastAPI()
 
 Base.metadata.create_all(bind=engine)
 
-udp_thread = UDPListenerTasks(name="UDP thread", db_session=SessionLocal, app_key=APP_KEY, host=(IP_ADDRESS, UDP_PORT))
+# udp_thread = UDPListenerTasks(name="UDP thread", db_session=SessionLocal, app_key=APP_KEY, host=(IP_ADDRESS_BROADCAST, UDP_PORT))
 
 
 class RawResponse(Response):
@@ -60,13 +60,16 @@ async def startup_event():
 
     # Отправка информации о себе
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
     advertise = {"ip": ip_address, "key": APP_KEY}
-    sock.sendto(json.dumps(advertise).encode(), (IP_ADDRESS, UDP_PORT))
+    sock.sendto(json.dumps(advertise).encode(), (IP_ADDRESS_BROADCAST, UDP_PORT))
 
-    udp_thread.start()
+    # udp_thread.start()
+    # print("Запущено прослушивание порта синхронизации")
 
 
 @app.on_event("shutdown")
 async def shutdown_event():
     # FIXME: Ошибка при закрытии asyncio лупа
-    udp_thread.stop()
+    # udp_thread.stop()
+    pass
