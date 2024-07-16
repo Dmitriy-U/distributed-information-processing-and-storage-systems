@@ -1,6 +1,7 @@
 import socket
 import json
 
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, Depends
 from fastapi.responses import Response
 from sqlalchemy.orm import Session
@@ -9,15 +10,42 @@ from .constants import IP_ADDRESS, UDP_PORT, APP_KEY, IP_ADDRESS_BROADCAST
 from .database import SessionLocal, Base, engine, get_db
 from .crud import create_node_if_not_exist, create_or_update_data_item
 from .helpers import get_self_ip_address, get_hash, to_camel_case
+from .logger import logger
 from .responses import OctetStreamResponse
 from .schemas import NodeRequestData
 from .udp_listener import UDPListenerTasks
 
-app = FastAPI()
+advertise_listener_thread = UDPListenerTasks(name="UDP thread", db_session=SessionLocal, app_key=APP_KEY,
+                                             host=(IP_ADDRESS_BROADCAST, UDP_PORT))
+
+
+@asynccontextmanager
+async def lifespan(app):
+    logger.info('sub startup')
+    ip_address = get_self_ip_address()
+
+    # Сохранение текущей ноды
+    with SessionLocal() as session:
+        create_node_if_not_exist(session, ip_address, get_hash(ip_address.encode()))
+
+    # Отправка информации о себе
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+    advertise = {"ip": ip_address, "key": APP_KEY}
+    sock.sendto(json.dumps(advertise).encode(), (IP_ADDRESS_BROADCAST, UDP_PORT))
+
+    advertise_listener_thread.start()
+    logger.info("Запущено прослушивание порта синхронизации")
+    yield
+    logger.info("sub shutdown")
+    # FIXME: Ошибка при закрытии asyncio лупа
+    # udp_thread.stop()
+    pass
+
+
+app = FastAPI(lifespan=lifespan)
 
 Base.metadata.create_all(bind=engine)
-
-# udp_thread = UDPListenerTasks(name="UDP thread", db_session=SessionLocal, app_key=APP_KEY, host=(IP_ADDRESS_BROADCAST, UDP_PORT))
 
 
 class RawResponse(Response):
@@ -48,28 +76,3 @@ async def keys_set(key_hash: int, request: Request, db: Session = Depends(get_db
     create_or_update_data_item(db, key_hash, data)
 
     return Response(status_code=201)
-
-
-@app.on_event("startup")
-async def startup_event():
-    ip_address = get_self_ip_address()
-
-    # Сохранение текущей ноды
-    with SessionLocal() as session:
-        create_node_if_not_exist(session, ip_address, get_hash(ip_address.encode()))
-
-    # Отправка информации о себе
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-    advertise = {"ip": ip_address, "key": APP_KEY}
-    sock.sendto(json.dumps(advertise).encode(), (IP_ADDRESS_BROADCAST, UDP_PORT))
-
-    # udp_thread.start()
-    # print("Запущено прослушивание порта синхронизации")
-
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    # FIXME: Ошибка при закрытии asyncio лупа
-    # udp_thread.stop()
-    pass

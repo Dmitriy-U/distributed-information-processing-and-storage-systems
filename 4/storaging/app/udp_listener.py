@@ -4,7 +4,9 @@ import asyncio
 from threading import Thread, Event
 from sqlalchemy.orm import Session
 
-from app import create_node_if_not_exist, get_hash
+from .logger import logger
+from .helpers import get_hash
+from .crud import create_node_if_not_exist
 
 
 class UDPProtocol(asyncio.BaseProtocol):
@@ -16,9 +18,11 @@ class UDPProtocol(asyncio.BaseProtocol):
     def connection_made(self, transport):
         self.transport = transport
 
-    def datagram_received(self, data, addr):
+    def datagram_received(self, data, addr: tuple):
         message = data.decode()
         data = json.loads(message)
+
+        logger.info(f'receive udp packet --> {str(addr)} {str(data)}')
 
         key: int | None = data.get('key', None)
         if key is None or key != self._app_key:
@@ -32,7 +36,7 @@ class UDPProtocol(asyncio.BaseProtocol):
 
         # Сохранение текущей ноды
         with self.db_session() as session:
-            print(ip_address, ip)
+            logger.info(f"{ip_address} {ip}")
             # TODO: Получать ip-адрес из адреса отправителя
             create_node_if_not_exist(session, ip, get_hash(ip.encode()))
 
