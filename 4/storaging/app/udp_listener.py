@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from .logger import logger
 from .helpers import get_hash
+from .constants import APP_KEY
 from .crud import create_node_if_not_exist
 
 
@@ -22,7 +23,7 @@ class UDPProtocol(asyncio.BaseProtocol):
         message = data.decode()
         data = json.loads(message)
 
-        logger.info(f'receive udp packet --> {str(addr)} {str(data)}')
+        logger.info(f'Receive udp packet --> {str(addr)} {str(data)}')
 
         key: int | None = data.get('key', None)
         if key is None or key != self._app_key:
@@ -32,13 +33,16 @@ class UDPProtocol(asyncio.BaseProtocol):
         if ip is None:
             return
 
-        ip_address, port = addr
+        logger.info(f'{key} {APP_KEY}')
+
+        if key is not APP_KEY:
+            return
+
+        ip_address, _ = addr
 
         # Сохранение текущей ноды
         with self.db_session() as session:
-            logger.info(f"{ip_address} {ip}")
-            # TODO: Получать ip-адрес из адреса отправителя
-            create_node_if_not_exist(session, ip, get_hash(ip.encode()))
+            create_node_if_not_exist(session, ip_address, get_hash(ip_address.encode()))
 
 
 class UDPListenerTasks(Thread):

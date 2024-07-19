@@ -9,11 +9,19 @@ services:
     container_name: laboratory-4-2
     networks:
       - laboratory-4
+    depends_on:
+      - node-1
+    links:
+      - node-1
   node-3:
     image: laboratory-4
     container_name: laboratory-4-3
     networks:
       - laboratory-4
+    depends_on:
+      - node-2
+    links:
+      - node-2
 
 networks:
   laboratory-4:

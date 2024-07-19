@@ -23,6 +23,7 @@ advertise_listener_thread = UDPListenerTasks(name="UDP thread", db_session=Sessi
 async def lifespan(app):
     logger.info('sub startup')
     ip_address = get_self_ip_address()
+    logger.info(f"Собственный ip адрес: {ip_address}")
 
     # Сохранение текущей ноды
     with SessionLocal() as session:
@@ -57,14 +58,15 @@ class RawResponse(Response):
 
 @app.put("/nodes", tags=["Ноды"], summary="Обновление нод")
 async def nodes_update(nodes: NodeRequestData):
-    print('-->', nodes)
+    logger.info(f'Nodes --> {str(nodes)}')
     # Will have done
+    return Response(201)
 
 
 @app.get("/keys/{key_hash}", tags=["Ключи"], response_class=OctetStreamResponse, summary="Получить данные ключа")
-async def keys_get(key_hash: int):
-    print('-->', key_hash)
-    return b"TODO"
+async def get_key(key_hash: int):
+    logger.info(f'Get key --> {str(key_hash)}')
+    return Response(200)
 
 
 @app.post("/keys/{key_hash}", tags=["Ключи"], status_code=201, summary="Записать данные ключа")
