@@ -2,19 +2,18 @@ import json
 import asyncio
 
 from threading import Thread, Event
-from sqlalchemy.orm import Session
 
+from .database import SessionLocal
 from .logger import logger
 from .helpers import get_hash
 from .constants import APP_KEY
 from .crud import create_node_if_not_exist
 
 
-class UDPProtocol(asyncio.BaseProtocol):
-    def __init__(self, app_key: str, db_session: Session):
+class NodeSynchronizationHandleFactory(asyncio.BaseProtocol):
+    def __init__(self, app_key: str):
         self._app_key = app_key
         self.transport = None
-        self.db_session = db_session
 
     def connection_made(self, transport):
         self.transport = transport
@@ -33,33 +32,30 @@ class UDPProtocol(asyncio.BaseProtocol):
         if ip is None:
             return
 
-        logger.info(f'{key} {APP_KEY}')
-
-        if key is not APP_KEY:
+        if key != APP_KEY:
             return
 
         ip_address, _ = addr
 
-        # Сохранение текущей ноды
-        with self.db_session() as session:
-            create_node_if_not_exist(session, ip_address, get_hash(ip_address.encode()))
+        with SessionLocal() as db_session:
+            logger.info(f"Create advertised node if not exist: {ip_address}")
+            create_node_if_not_exist(db_session, ip_address, get_hash(ip_address.encode()))
 
 
-class UDPListenerTasks(Thread):
-    def __init__(self, app_key: str, host: tuple[str, int], db_session: Session, *args, **kwargs):
-        super(UDPListenerTasks, self).__init__(*args, **kwargs)
+class UDPNodeSynchronizationLoop(Thread):
+    def __init__(self, app_key: str, host: tuple[str, int], *args, **kwargs):
+        super(UDPNodeSynchronizationLoop, self).__init__(*args, **kwargs)
 
         self._host = host
         self._app_key = app_key
         self._stop_event = Event()
         self._loop = None
         self._transport = None
-        self.db_session = db_session
 
     def run(self, *args, **kwargs):
         self._loop = asyncio.new_event_loop()
         listen = self._loop.create_datagram_endpoint(
-            lambda: UDPProtocol(db_session=self.db_session, app_key=self._app_key),
+            lambda: NodeSynchronizationHandleFactory(app_key=self._app_key),
             local_addr=self._host,
             allow_broadcast=True
         )

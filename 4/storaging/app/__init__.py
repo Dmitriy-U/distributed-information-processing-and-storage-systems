@@ -13,10 +13,9 @@ from .helpers import get_self_ip_address, get_hash, to_camel_case
 from .logger import logger
 from .responses import OctetStreamResponse
 from .schemas import NodeRequestData
-from .udp_listener import UDPListenerTasks
+from .udp_listener import UDPNodeSynchronizationLoop
 
-advertise_listener_thread = UDPListenerTasks(name="UDP thread", db_session=SessionLocal, app_key=APP_KEY,
-                                             host=(IP_ADDRESS_BROADCAST, UDP_PORT))
+advertise_listener_thread = UDPNodeSynchronizationLoop(app_key=APP_KEY, host=(IP_ADDRESS_BROADCAST, UDP_PORT))
 
 
 @asynccontextmanager
@@ -35,6 +34,7 @@ async def lifespan(app):
     advertise = {"ip": ip_address, "key": APP_KEY}
     sock.sendto(json.dumps(advertise).encode(), (IP_ADDRESS_BROADCAST, UDP_PORT))
 
+    # Запуск прослушивания
     advertise_listener_thread.start()
     logger.info("Запущено прослушивание порта синхронизации")
     yield
