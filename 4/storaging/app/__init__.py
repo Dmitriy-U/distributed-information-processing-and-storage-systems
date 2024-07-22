@@ -56,11 +56,11 @@ class RawResponse(Response):
         return bytes([b ^ 0x54 for b in content])
 
 
-@app.put("/nodes", tags=["Ноды"], summary="Обновление нод")
-async def nodes_update(nodes: NodeRequestData):
-    logger.info(f'Nodes --> {str(nodes)}')
-    # Will have done
-    return Response(201)
+@app.put("/nodes", tags=["Ноды"], summary="Обновление нод", status_code=201)
+async def nodes_update(nodes: NodeRequestData, db: Session = Depends(get_db)):
+    logger.info(f'Nodes update --> {nodes}')
+    for ip in nodes.ip_list:
+        create_node_if_not_exist(db, ip, get_hash(ip.encode()))
 
 
 @app.get("/keys/{key_hash}", tags=["Ключи"], response_class=OctetStreamResponse, summary="Получить данные ключа")

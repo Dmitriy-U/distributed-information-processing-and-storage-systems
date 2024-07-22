@@ -1,13 +1,14 @@
 import json
 import asyncio
+import requests
 
 from threading import Thread, Event
 
 from .database import SessionLocal
 from .logger import logger
 from .helpers import get_hash
-from .constants import APP_KEY
-from .crud import create_node_if_not_exist
+from .constants import APP_KEY, TCP_PORT
+from .crud import create_node_if_not_exist, get_node_ip_list
 
 
 class NodeSynchronizationHandleFactory(asyncio.BaseProtocol):
@@ -38,8 +39,13 @@ class NodeSynchronizationHandleFactory(asyncio.BaseProtocol):
         ip_address, _ = addr
 
         with SessionLocal() as db_session:
+            # Запись новой ноды
             logger.info(f"Create advertised node if not exist: {ip_address}")
             create_node_if_not_exist(db_session, ip_address, get_hash(ip_address.encode()))
+
+            # Отправка известных нод
+            ip_list = get_node_ip_list(db_session)
+            requests.put(f'http://{ip_address}:{TCP_PORT}/nodes', json={"ipList": ip_list})
 
 
 class UDPNodeSynchronizationLoop(Thread):
