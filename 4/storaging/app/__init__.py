@@ -44,7 +44,14 @@ async def lifespan(app):
     pass
 
 
-app = FastAPI(lifespan=lifespan)
+app = FastAPI(
+    title="Лабораторная работа 4. Хранение данных",
+    summary="Децентрализованное хранение данных",
+    version="1.0.0",
+    contact={"test": "test"},
+    separate_input_output_schemas=False,
+    lifespan=lifespan
+)
 
 Base.metadata.create_all(bind=engine)
 
@@ -56,7 +63,13 @@ class RawResponse(Response):
         return bytes([b ^ 0x54 for b in content])
 
 
-@app.put("/api/internal/nodes", tags=["Внутреннее API"], summary="Обновление нод", status_code=201)
+@app.put(
+    "/nodes",
+    tags=["Внутреннее API"],
+    include_in_schema=False,
+    summary="Обновление нод",
+    status_code=201
+)
 async def nodes_update(nodes: NodeRequestData, db: Session = Depends(get_db)):
     logger.info(f'Nodes update --> {nodes}')
     for ip in nodes.ip_list:
