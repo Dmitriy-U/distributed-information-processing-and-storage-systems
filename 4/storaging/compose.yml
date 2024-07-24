@@ -2,11 +2,15 @@ services:
   node-1:
     image: laboratory-4
     container_name: laboratory-4-1
+    ports:
+      - "127.0.0.100:9090:9090"
     networks:
       - laboratory-4
   node-2:
     image: laboratory-4
     container_name: laboratory-4-2
+    ports:
+      - "127.0.0.101:9090:9090"
     networks:
       - laboratory-4
     depends_on:
@@ -16,6 +20,8 @@ services:
   node-3:
     image: laboratory-4
     container_name: laboratory-4-3
+    ports:
+      - "127.0.0.102:9090:9090"
     networks:
       - laboratory-4
     depends_on:
