@@ -9,6 +9,10 @@ def get_node_ip_list(db: Session) -> list[models.Node.ip]:
     return list(chain(*result))
 
 
+def get_nodes(db: Session) -> list[models.Node]:
+    return db.query(models.Node).all()
+
+
 def create_node_if_not_exist(db: Session, ip: str, ip_hash: int):
     node = db.query(models.Node).filter(models.Node.ip == ip).first()
 

@@ -3,6 +3,8 @@ import socket
 
 from humps import camel
 
+from .constants import HASH_BIT_COUNT
+
 
 def get_self_ip_address() -> str:
     """Получение собственного IP-адреса"""
@@ -13,7 +15,7 @@ def get_self_ip_address() -> str:
     return ip_address
 
 
-def get_hash(string: bytes, hash_bit=8) -> int:
+def get_hash(string: bytes, hash_bit=HASH_BIT_COUNT) -> int:
     """
     Получение хеша (по-умолчанию 8-битного)
 

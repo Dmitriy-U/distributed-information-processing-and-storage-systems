@@ -45,7 +45,7 @@ class NodeSynchronizationHandleFactory(asyncio.BaseProtocol):
 
             # Отправка известных нод
             ip_list = get_node_ip_list(db_session)
-            requests.put(f'http://{ip_address}:{TCP_PORT}/nodes', json={"ipList": ip_list})
+            requests.put(f'http://{ip_address}:{TCP_PORT}/api/internal/nodes', json={"ipList": ip_list})
 
 
 class UDPNodeSynchronizationLoop(Thread):

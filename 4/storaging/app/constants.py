@@ -1,11 +1,11 @@
-from .helpers import get_self_ip_address
-
 UDP_PORT = 9000
 
 TCP_PORT = 9090
 
-IP_ADDRESS_BROADCAST = "255.255.255.255"
+IP_ADDRESS_BROADCAST = "127.0.0.1"
 
-IP_ADDRESS = get_self_ip_address()
+HASH_BIT_COUNT = 8
+
+HASH_BIT_MAX_VALUE = int('1' * HASH_BIT_COUNT, 2)
 
 APP_KEY = 'LABORATORY_4'
