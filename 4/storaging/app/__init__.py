@@ -2,14 +2,16 @@ import socket
 import json
 
 from contextlib import asynccontextmanager
+
+import requests
 from fastapi import FastAPI, Request, Depends
 from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
-from .constants import UDP_PORT, APP_KEY, IP_ADDRESS_BROADCAST
+from .constants import UDP_PORT, APP_KEY, IP_ADDRESS_BROADCAST, HASH_BIT_MAX_VALUE, TCP_PORT
 from .database import SessionLocal, Base, engine, get_db
-from .crud import create_node_if_not_exist, create_or_update_data_item, get_nodes
-from .helpers import get_self_ip_address, get_hash, to_camel_case
+from .crud import create_node_if_not_exist, create_or_update_data_item, get_nodes, delete_data_item
+from .helpers import get_self_ip_address, get_hash, to_camel_case, search_before_and_after_nodes
 from .logger import logger
 from .responses import OctetStreamResponse
 from .schemas import NodeRequestData
@@ -76,46 +78,19 @@ async def nodes_update(nodes: NodeRequestData, db: Session = Depends(get_db)):
         create_node_if_not_exist(db, ip, get_hash(ip.encode()))
 
 
-@app.get("/api/internal/keys/{key_hash}", tags=["Внутреннее API"], response_class=OctetStreamResponse, status_code=200, summary="Получить данные ключа")
-async def get_key(key_hash: int):
-    logger.info(f'Get key --> {str(key_hash)}')
-    return Response(200)
-
-
-@app.post("/api/internal/keys/{key_hash}", tags=["Внутреннее API"], status_code=201, summary="Записать данные ключа")
-async def keys_set(key_hash: int, request: Request, db: Session = Depends(get_db)):
-    data = b''
-    async for chunk in request.stream():
-        data += chunk
-
-    create_or_update_data_item(db, key_hash, data)
-
-    return Response(status_code=201)
-
-
-@app.delete("/api/internal/keys/{key_hash}", tags=["Внутреннее API"], status_code=200, summary="Удалить ключ")
-async def keys_delete(key_hash: int, request: Request, db: Session = Depends(get_db)):
-    data = b''
-    async for chunk in request.stream():
-        data += chunk
-    # TODO: Will have done
-    create_or_update_data_item(db, key_hash, data)
-
-    return Response(status_code=201)
-
-
-@app.get("/api/external/keys/{key}", tags=["Внешнее API"], response_class=OctetStreamResponse, status_code=200, summary="Получить данные ключа")
+@app.get("/keys/{key}", tags=["API"], response_class=OctetStreamResponse, status_code=200,
+         summary="Получить данные ключа")
 async def get_key(key: str, db: Session = Depends(get_db)):
-    key_hash = get_hash(key)
+    key_hash = get_hash(key.encode())
     nodes = get_nodes(db)
     # TODO: Will have done
     logger.info(f'Get key --> {str(key_hash)}')
     return Response(200)
 
 
-@app.post("/api/external/keys/{key}", tags=["Внешнее API"], status_code=201, summary="Записать данные ключа")
+@app.post("/keys/{key}", tags=["API"], status_code=201, summary="Записать данные ключа")
 async def keys_set(key: str, request: Request, db: Session = Depends(get_db)):
-    key_hash = get_hash(key)
+    key_hash = get_hash(key.encode())
     data = b''
     async for chunk in request.stream():
         data += chunk
@@ -125,13 +100,21 @@ async def keys_set(key: str, request: Request, db: Session = Depends(get_db)):
     return Response(status_code=201)
 
 
-@app.delete("/api/external/keys/{key}", tags=["Внешнее API"], status_code=200, summary="Удалить ключ")
-async def keys_delete(key: int, request: Request, db: Session = Depends(get_db)):
-    key_hash = get_hash(key)
-    data = b''
-    async for chunk in request.stream():
-        data += chunk
-    # TODO: Will have done
-    create_or_update_data_item(db, key_hash, data)
+@app.delete("/keys/{key}", tags=["API"], status_code=200, summary="Удалить ключ")
+async def keys_delete(key: str, db: Session = Depends(get_db)):
+    key_hash = get_hash(key.encode())
+    node_list = get_nodes(db)
 
-    return Response(status_code=201)
+    nodes = {}
+    for node in node_list:
+        nodes[node.hash] = node.ip
+
+    node_hash_before, node_hash_after = search_before_and_after_nodes(key_hash, list(nodes.keys()))
+
+    node_ip_address = nodes.get(node_hash_before)
+    node_ip_address_self = get_self_ip_address()
+
+    if node_ip_address == node_ip_address_self:
+        delete_data_item(db, key_hash)
+    else:
+        requests.delete(f'http://{node_ip_address}:{TCP_PORT}/keys/{key}')
