@@ -40,6 +40,10 @@ def create_or_update_data_item(db: Session, key_hash: int, data: bytes):
         db.refresh(data_item)
 
 
+def get_data_item(db: Session, key_hash: int) -> models.DataRow | None:
+    return db.query(models.DataRow).filter(models.DataRow.key_hash == key_hash).first()
+
+
 def delete_data_item(db: Session, key_hash: int):
     data_item = db.query(models.DataRow).filter(models.DataRow.key_hash == key_hash).first()
 

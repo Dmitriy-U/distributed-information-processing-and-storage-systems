@@ -1,5 +1,5 @@
-import socket
 import json
+import socket
 
 from contextlib import asynccontextmanager
 
@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from .constants import UDP_PORT, APP_KEY, IP_ADDRESS_BROADCAST, HASH_BIT_MAX_VALUE, TCP_PORT
 from .database import SessionLocal, Base, engine, get_db
-from .crud import create_node_if_not_exist, create_or_update_data_item, get_nodes, delete_data_item
+from .crud import create_node_if_not_exist, create_or_update_data_item, get_nodes, delete_data_item, get_data_item
 from .helpers import get_self_ip_address, get_hash, to_camel_case, search_before_and_after_nodes
 from .logger import logger
 from .responses import OctetStreamResponse
@@ -82,20 +82,64 @@ async def nodes_update(nodes: NodeRequestData, db: Session = Depends(get_db)):
          summary="Получить данные ключа")
 async def get_key(key: str, db: Session = Depends(get_db)):
     key_hash = get_hash(key.encode())
-    nodes = get_nodes(db)
-    # TODO: Will have done
     logger.info(f'Get key --> {str(key_hash)}')
-    return Response(200)
+
+    node_list = get_nodes(db)
+
+    nodes = {}
+    for node in node_list:
+        nodes[node.hash] = node.ip
+
+    node_hash_before, node_hash_after = search_before_and_after_nodes(key_hash, list(nodes.keys()))
+
+    node_ip_address = nodes.get(node_hash_before)
+    node_ip_address_self = get_self_ip_address()
+
+    binary_data: None | bytes
+    if node_ip_address == node_ip_address_self:
+        data_item = get_data_item(db, key_hash)
+        if data_item is None:
+            binary_data = None
+        else:
+            binary_data = data_item.data
+    else:
+        response = requests.get(f'http://{node_ip_address}:{TCP_PORT}/keys/{key}', stream=True)
+        if response.status_code == 200:
+            binary_data = response.content
+        else:
+            binary_data = None
+
+    if binary_data is None:
+        return Response(404)
+    else:
+        return Response(200, content=binary_data)
 
 
 @app.post("/keys/{key}", tags=["API"], status_code=201, summary="Записать данные ключа")
 async def keys_set(key: str, request: Request, db: Session = Depends(get_db)):
     key_hash = get_hash(key.encode())
+
     data = b''
     async for chunk in request.stream():
         data += chunk
 
+    node_list = get_nodes(db)
+
+    nodes = {}
+    for node in node_list:
+        nodes[node.hash] = node.ip
+
+    node_hash_before, node_hash_after = search_before_and_after_nodes(key_hash, list(nodes.keys()))
+
+    node_ip_address = nodes.get(node_hash_before)
+    node_ip_address_self = get_self_ip_address()
+
     create_or_update_data_item(db, key_hash, data)
+
+    if node_ip_address == node_ip_address_self:
+        create_or_update_data_item(db, key_hash, data)
+    else:
+        requests.post(f'http://{node_ip_address}:{TCP_PORT}/keys/{key}', data=data)
 
     return Response(status_code=201)
 
