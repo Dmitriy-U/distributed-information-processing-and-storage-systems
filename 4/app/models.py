@@ -10,8 +10,8 @@ class Node(Base):
     ip = Column(String, unique=True)
 
 
-class DataRow(Base):
-    __tablename__ = "storage"
+class Data(Base):
+    __tablename__ = "data"
 
     hash = Column(Integer, unique=True, primary_key=True)
     data = Column(LargeBinary)

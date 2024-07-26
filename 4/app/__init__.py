@@ -68,7 +68,6 @@ class RawResponse(Response):
 @app.put(
     "/nodes",
     tags=["Внутреннее API"],
-    include_in_schema=False,
     summary="Обновление нод",
     status_code=201
 )
@@ -78,9 +77,9 @@ async def nodes_update(nodes: NodeRequestData, db: Session = Depends(get_db)):
         create_node_if_not_exist(db, ip, get_hash(ip.encode()))
 
 
-@app.get("/keys/{key}", tags=["API"], response_class=OctetStreamResponse, status_code=200,
+@app.get("/data/{key}", tags=["API"], response_class=OctetStreamResponse, status_code=200,
          summary="Получить данные ключа")
-async def get_key(key: str, db: Session = Depends(get_db)):
+async def data_get(key: str, db: Session = Depends(get_db)):
     key_hash = get_hash(key.encode())
     logger.info(f'Get key --> {str(key_hash)}')
 
@@ -103,20 +102,23 @@ async def get_key(key: str, db: Session = Depends(get_db)):
         else:
             binary_data = data_item.data
     else:
-        response = requests.get(f'http://{node_ip_address}:{TCP_PORT}/keys/{key}', stream=True)
+        response = requests.get(f'http://{node_ip_address}:{TCP_PORT}/data/{key}', stream=True)
         if response.status_code == 200:
             binary_data = response.content
         else:
             binary_data = None
 
     if binary_data is None:
-        return Response(404)
+        return Response(status_code=404)
     else:
-        return Response(200, content=binary_data)
+        return Response(
+            binary_data,
+            media_type="application/octet-stream",
+        )
 
 
-@app.post("/keys/{key}", tags=["API"], status_code=201, summary="Записать данные ключа")
-async def keys_set(key: str, request: Request, db: Session = Depends(get_db)):
+@app.post("/data/{key}", tags=["API"], status_code=201, summary="Записать данные ключа")
+async def data_create(key: str, request: Request, db: Session = Depends(get_db)):
     key_hash = get_hash(key.encode())
 
     data = b''
@@ -134,17 +136,15 @@ async def keys_set(key: str, request: Request, db: Session = Depends(get_db)):
     node_ip_address = nodes.get(node_hash_before)
     node_ip_address_self = get_self_ip_address()
 
-    create_or_update_data_item(db, key_hash, data)
-
     if node_ip_address == node_ip_address_self:
         create_or_update_data_item(db, key_hash, data)
     else:
-        requests.post(f'http://{node_ip_address}:{TCP_PORT}/keys/{key}', data=data)
+        requests.post(f'http://{node_ip_address}:{TCP_PORT}/data/{key}', data=data)
 
     return Response(status_code=201)
 
 
-@app.delete("/keys/{key}", tags=["API"], status_code=200, summary="Удалить ключ")
+@app.delete("/data/{key}", tags=["API"], status_code=200, summary="Удалить ключ")
 async def keys_delete(key: str, db: Session = Depends(get_db)):
     key_hash = get_hash(key.encode())
     node_list = get_nodes(db)
@@ -161,4 +161,4 @@ async def keys_delete(key: str, db: Session = Depends(get_db)):
     if node_ip_address == node_ip_address_self:
         delete_data_item(db, key_hash)
     else:
-        requests.delete(f'http://{node_ip_address}:{TCP_PORT}/keys/{key}')
+        requests.delete(f'http://{node_ip_address}:{TCP_PORT}/data/{key}')

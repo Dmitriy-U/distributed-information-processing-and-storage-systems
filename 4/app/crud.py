@@ -26,28 +26,27 @@ def create_node_if_not_exist(db: Session, ip: str, ip_hash: int):
 
 
 def create_or_update_data_item(db: Session, key_hash: int, data: bytes):
-    data_item = db.query(models.DataRow).filter(models.DataRow.key_hash == key_hash).first()
+    data_item = db.query(models.Data).filter(models.Data.hash == key_hash).first()
 
     if data_item is None:
-        data_item = models.DataRow(hash=key_hash, data=data)
+        data_item = models.Data(hash=key_hash, data=data)
         db.add(data_item)
         db.commit()
         db.refresh(data_item)
     else:
-        data_item.key_hash = key_hash
+        data_item.hash = key_hash
         data_item.data = data
         db.commit()
         db.refresh(data_item)
 
 
-def get_data_item(db: Session, key_hash: int) -> models.DataRow | None:
-    return db.query(models.DataRow).filter(models.DataRow.key_hash == key_hash).first()
+def get_data_item(db: Session, key_hash: int) -> models.Data | None:
+    return db.query(models.Data).filter(models.Data.hash == key_hash).first()
 
 
 def delete_data_item(db: Session, key_hash: int):
-    data_item = db.query(models.DataRow).filter(models.DataRow.key_hash == key_hash).first()
+    data_item = db.query(models.Data).filter(models.Data.hash == key_hash).first()
 
     if data_item is not None:
         db.delete(data_item)
         db.commit()
-        db.refresh(data_item)
