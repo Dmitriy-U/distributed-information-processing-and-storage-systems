@@ -1,9 +1,11 @@
 import hashlib
 import socket
+import json
 
 from humps import camel
 
-from .constants import HASH_BIT_COUNT
+from .logger import logger
+from .constants import HASH_BIT_COUNT, IP_ADDRESS_BROADCAST, UDP_PORT, APP_KEY
 
 
 def get_self_ip_address() -> str:
@@ -61,3 +63,14 @@ def search_before_and_after_nodes(target_hash: int, node_hash_list: list[int]):
         node_hash_after = node_hash_list[1]
 
     return node_hash_before, node_hash_after
+
+
+def make_advertise():
+    """Отправка информации о себе"""
+
+    ip_address_self = get_self_ip_address()
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+    advertise = {"ip": ip_address_self, "key": APP_KEY}
+    sock.sendto(json.dumps(advertise).encode(), (IP_ADDRESS_BROADCAST, UDP_PORT))
+    logger.info(f"Advertise: {ip_address_self}")

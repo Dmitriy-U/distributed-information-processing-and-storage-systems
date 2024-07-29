@@ -1,20 +1,19 @@
-import json
-import socket
-import asyncio
-
-from contextlib import asynccontextmanager, suppress
-
 import requests
+
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, Depends
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
-from .constants import UDP_PORT, APP_KEY, IP_ADDRESS_BROADCAST, HASH_BIT_MAX_VALUE, TCP_PORT
+from .constants import UDP_PORT, APP_KEY, IP_ADDRESS_BROADCAST, HASH_BIT_MAX_VALUE, TCP_PORT, \
+    ADVERTISE_PERIODIC_CALL_SECONDS
 from .database import SessionLocal, Base, engine, get_db
 from .crud import create_node_if_not_exist, create_or_update_data_item, get_nodes, delete_data_item, get_data_item
-from .helpers import get_self_ip_address, get_hash, to_camel_case, search_before_and_after_nodes
+from .helpers import get_self_ip_address, get_hash, to_camel_case, search_before_and_after_nodes, make_advertise
 from .logger import logger
-from .responses import OctetStreamResponse
+from .periodic_call_handler import PeriodicCallHandler
+from .responses import OctetStreamResponse, RawResponse
 from .schemas import NodeRequestData
 from .udp_listener import UDPNodeSynchronizationLoop
 
@@ -24,42 +23,7 @@ advertise_listener_thread = UDPNodeSynchronizationLoop(
     ip_address_self=get_self_ip_address()
 )
 
-
-def make_advertise():
-    ip_address_self = get_self_ip_address()
-    # Отправка информации о себе
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-    advertise = {"ip": ip_address_self, "key": APP_KEY}
-    sock.sendto(json.dumps(advertise).encode(), (IP_ADDRESS_BROADCAST, UDP_PORT))
-    logger.info(f"Advertise: {ip_address_self}")
-
-
-class Periodic:
-    def __init__(self, func, time):
-        self.func = func
-        self.time = time
-        self.is_started = False
-        self._task = None
-
-    async def start(self):
-        if not self.is_started:
-            self.is_started = True
-            # Start task to call func periodically:
-            self._task = asyncio.ensure_future(self._run())
-
-    async def stop(self):
-        if self.is_started:
-            self.is_started = False
-            # Stop task and await it stopped:
-            self._task.cancel()
-            with suppress(asyncio.CancelledError):
-                await self._task
-
-    async def _run(self):
-        while True:
-            await asyncio.sleep(self.time)
-            self.func()
+make_advertise_periodic = PeriodicCallHandler(lambda: make_advertise(), ADVERTISE_PERIODIC_CALL_SECONDS)
 
 
 @asynccontextmanager
@@ -81,10 +45,11 @@ async def lifespan(app):
     advertise_listener_thread.start()
     logger.info("Запущено прослушивание порта синхронизации")
 
-    p = Periodic(lambda: make_advertise(), 5)
-    await p.start()
+    await make_advertise_periodic.start()
+    logger.info("Запущено прослушивание порта синхронизации")
     yield
     logger.info("sub shutdown")
+    await make_advertise_periodic.stop()
     # FIXME: Ошибка при закрытии asyncio лупа
     # udp_thread.stop()
     pass
@@ -99,14 +64,15 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"]
+)
+
 Base.metadata.create_all(bind=engine)
-
-
-class RawResponse(Response):
-    media_type = "binary/octet-stream"
-
-    def render(self, content: bytes) -> bytes:
-        return bytes([b ^ 0x54 for b in content])
 
 
 @app.put(
