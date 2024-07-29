@@ -1,7 +1,8 @@
 import json
 import socket
+import asyncio
 
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 
 import requests
 from fastapi import FastAPI, Request, Depends
@@ -17,28 +18,71 @@ from .responses import OctetStreamResponse
 from .schemas import NodeRequestData
 from .udp_listener import UDPNodeSynchronizationLoop
 
-advertise_listener_thread = UDPNodeSynchronizationLoop(app_key=APP_KEY, host=(IP_ADDRESS_BROADCAST, UDP_PORT))
+advertise_listener_thread = UDPNodeSynchronizationLoop(
+    app_key=APP_KEY,
+    host=(IP_ADDRESS_BROADCAST, UDP_PORT),
+    ip_address_self=get_self_ip_address()
+)
+
+
+def make_advertise():
+    ip_address_self = get_self_ip_address()
+    # Отправка информации о себе
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+    advertise = {"ip": ip_address_self, "key": APP_KEY}
+    sock.sendto(json.dumps(advertise).encode(), (IP_ADDRESS_BROADCAST, UDP_PORT))
+    logger.info(f"Advertise: {ip_address_self}")
+
+
+class Periodic:
+    def __init__(self, func, time):
+        self.func = func
+        self.time = time
+        self.is_started = False
+        self._task = None
+
+    async def start(self):
+        if not self.is_started:
+            self.is_started = True
+            # Start task to call func periodically:
+            self._task = asyncio.ensure_future(self._run())
+
+    async def stop(self):
+        if self.is_started:
+            self.is_started = False
+            # Stop task and await it stopped:
+            self._task.cancel()
+            with suppress(asyncio.CancelledError):
+                await self._task
+
+    async def _run(self):
+        while True:
+            await asyncio.sleep(self.time)
+            self.func()
 
 
 @asynccontextmanager
 async def lifespan(app):
     logger.info('sub startup')
     ip_address = get_self_ip_address()
+    ip_address_hash = get_hash(ip_address.encode())
     logger.info(f"Собственный ip адрес: {ip_address}")
+    logger.info(f"Собственный hash ip адреса: {ip_address_hash}")
 
     # Сохранение текущей ноды
     with SessionLocal() as session:
         create_node_if_not_exist(session, ip_address, get_hash(ip_address.encode()))
 
     # Отправка информации о себе
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-    advertise = {"ip": ip_address, "key": APP_KEY}
-    sock.sendto(json.dumps(advertise).encode(), (IP_ADDRESS_BROADCAST, UDP_PORT))
+    make_advertise()
 
     # Запуск прослушивания
     advertise_listener_thread.start()
     logger.info("Запущено прослушивание порта синхронизации")
+
+    p = Periodic(lambda: make_advertise(), 5)
+    await p.start()
     yield
     logger.info("sub shutdown")
     # FIXME: Ошибка при закрытии asyncio лупа
@@ -90,6 +134,7 @@ async def data_get(key: str, db: Session = Depends(get_db)):
         nodes[node.hash] = node.ip
 
     node_hash_before, node_hash_after = search_before_and_after_nodes(key_hash, list(nodes.keys()))
+    logger.info(f"node_hash_before: {node_hash_before}, node_hash_after: {node_hash_after}")
 
     node_ip_address = nodes.get(node_hash_before)
     node_ip_address_self = get_self_ip_address()
@@ -102,6 +147,7 @@ async def data_get(key: str, db: Session = Depends(get_db)):
         else:
             binary_data = data_item.data
     else:
+        logger.info(f"GET://{node_ip_address}:{TCP_PORT}/data/{key}")
         response = requests.get(f'http://{node_ip_address}:{TCP_PORT}/data/{key}', stream=True)
         if response.status_code == 200:
             binary_data = response.content
@@ -132,13 +178,16 @@ async def data_create(key: str, request: Request, db: Session = Depends(get_db))
         nodes[node.hash] = node.ip
 
     node_hash_before, node_hash_after = search_before_and_after_nodes(key_hash, list(nodes.keys()))
+    logger.info(f"node_hash_before: {node_hash_before}, node_hash_after: {node_hash_after}")
 
     node_ip_address = nodes.get(node_hash_before)
     node_ip_address_self = get_self_ip_address()
 
+    logger.info(f"node_ip_address: {node_ip_address}, node_ip_address_self: {node_ip_address_self}")
     if node_ip_address == node_ip_address_self:
         create_or_update_data_item(db, key_hash, data)
     else:
+        logger.info(f"POST://{node_ip_address}:{TCP_PORT}/data/{key}")
         requests.post(f'http://{node_ip_address}:{TCP_PORT}/data/{key}', data=data)
 
     return Response(status_code=201)
@@ -154,11 +203,14 @@ async def keys_delete(key: str, db: Session = Depends(get_db)):
         nodes[node.hash] = node.ip
 
     node_hash_before, node_hash_after = search_before_and_after_nodes(key_hash, list(nodes.keys()))
+    logger.info(f"node_hash_before: {node_hash_before}, node_hash_after: {node_hash_after}")
 
     node_ip_address = nodes.get(node_hash_before)
     node_ip_address_self = get_self_ip_address()
 
+    logger.info(f"node_ip_address: {node_ip_address}, node_ip_address_self: {node_ip_address_self}")
     if node_ip_address == node_ip_address_self:
         delete_data_item(db, key_hash)
     else:
+        logger.info(f"DELETE://{node_ip_address}:{TCP_PORT}/data/{key}")
         requests.delete(f'http://{node_ip_address}:{TCP_PORT}/data/{key}')

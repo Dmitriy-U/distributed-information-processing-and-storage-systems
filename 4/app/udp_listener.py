@@ -12,14 +12,21 @@ from .crud import create_node_if_not_exist, get_node_ip_list
 
 
 class NodeSynchronizationHandleFactory(asyncio.BaseProtocol):
-    def __init__(self, app_key: str):
+    def __init__(self, app_key: str, ip_address_self: str):
         self._app_key = app_key
         self.transport = None
+        self._ip_address_self = ip_address_self
 
     def connection_made(self, transport):
         self.transport = transport
 
     def datagram_received(self, data, addr: tuple):
+        ip_address, _ = addr
+
+        logger.info(f'{ip_address} {self._ip_address_self}')
+        if ip_address == self._ip_address_self:
+            return
+
         message = data.decode()
         data = json.loads(message)
 
@@ -36,8 +43,6 @@ class NodeSynchronizationHandleFactory(asyncio.BaseProtocol):
         if key != APP_KEY:
             return
 
-        ip_address, _ = addr
-
         with SessionLocal() as db_session:
             # Запись новой ноды
             logger.info(f"Create advertised node if not exist: {ip_address}")
@@ -49,7 +54,7 @@ class NodeSynchronizationHandleFactory(asyncio.BaseProtocol):
 
 
 class UDPNodeSynchronizationLoop(Thread):
-    def __init__(self, app_key: str, host: tuple[str, int], *args, **kwargs):
+    def __init__(self, app_key: str, host: tuple[str, int], ip_address_self: str, *args, **kwargs):
         super(UDPNodeSynchronizationLoop, self).__init__(*args, **kwargs)
 
         self._host = host
@@ -57,11 +62,12 @@ class UDPNodeSynchronizationLoop(Thread):
         self._stop_event = Event()
         self._loop = None
         self._transport = None
+        self._ip_address_self = ip_address_self
 
     def run(self, *args, **kwargs):
         self._loop = asyncio.new_event_loop()
         listen = self._loop.create_datagram_endpoint(
-            lambda: NodeSynchronizationHandleFactory(app_key=self._app_key),
+            lambda: NodeSynchronizationHandleFactory(app_key=self._app_key, ip_address_self=self._ip_address_self),
             local_addr=self._host,
             allow_broadcast=True
         )
