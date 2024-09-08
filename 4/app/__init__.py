@@ -3,17 +3,18 @@ import requests
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import Response
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import Response, FileResponse
 from sqlalchemy.orm import Session
 
 from .constants import UDP_PORT, APP_KEY, IP_ADDRESS_BROADCAST, HASH_BIT_MAX_VALUE, TCP_PORT, \
     ADVERTISE_PERIODIC_CALL_SECONDS
 from .database import SessionLocal, Base, engine, get_db
 from .crud import create_node_if_not_exist, create_or_update_data_item, get_nodes, delete_data_item, get_data_item
-from .helpers import get_self_ip_address, get_hash, to_camel_case, search_before_and_after_nodes, make_advertise
+from .helpers import get_self_ip_address, get_hash, search_before_and_after_nodes, make_advertise
 from .logger import logger
 from .periodic_call_handler import PeriodicCallHandler
-from .responses import OctetStreamResponse, RawResponse
+from .responses import OctetStreamResponse
 from .schemas import NodeRequestData
 from .udp_listener import UDPNodeSynchronizationLoop
 
@@ -73,6 +74,14 @@ app.add_middleware(
 )
 
 Base.metadata.create_all(bind=engine)
+
+app.mount("/static", StaticFiles(directory="static", html = True), name="static")
+
+
+@app.get("/")
+async def read_index():
+    resp = FileResponse('static/index.html')
+    return resp
 
 
 @app.put(

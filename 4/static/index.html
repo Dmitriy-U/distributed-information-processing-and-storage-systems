@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+        content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Распределённое хранение данных: Запись/Чтение</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/css/bootstrap.min.css" />
+</head>
+
+<body>
+    <div class="container">
+        <h1 class="mb-3">Распределённое хранение данных: Запись/Чтение</h1>
+        <div class="input-group mb-3">
+            <label class="input-group-text" for="key">Ключ</label>
+            <input type="email" class="form-control" id="key" placeholder="test.txt">
+            <button class="btn btn-outline-primary" type="button" id="write">Записать</button>
+            <button class="btn btn-outline-primary" type="button" id="read">Прочитать</button>
+        </div>
+        <div>
+            <div class="input-group">
+            </div>
+            </form>
+        </div>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.min.js"></script>
+    <script>
+        const keyInput = document.getElementById('key');
+        const writeButton = document.getElementById('write');
+        const readButton = document.getElementById('read');
+        const writeFile = async () => {
+            const key = keyInput.value;
+            try {
+                const [fileHandle] = await showOpenFilePicker({ multiple: false });
+                const fileData = await fileHandle.getFile();
+                const buffer = await fileData.arrayBuffer();
+                const result = await fetch(
+                    `/data/${key}`,
+                    {
+                        method: "POST",
+                        body: buffer,
+                        headers: new Headers({
+                            'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+                        })
+                    }
+                );
+                alert(result.ok ? 'Запись успешна' : 'Запись не удалась');
+            } catch (e) {
+                console.warn(e.message);
+            }
+        }
+
+        const readFile = async () => {
+            const key = keyInput.value;
+            try {
+                const result = await fetch(
+                    `/data/${key}`,
+                    {
+                        method: "GET",
+                    }
+                );
+                if (result.ok) {
+                    const blob = await result.blob();
+                    const fileHandle = await showSaveFilePicker({ startIn: 'downloads', suggestedName: key });
+                    const writable = await fileHandle.createWritable();
+                    await writable.write(blob);
+                    await writable.close();
+                    alert('Чтение успешно');
+                } else {
+                    alert('Чтение не удалась');
+                }
+            } catch (e) {
+                console.warn(e.message);
+            }
+        }
+
+        writeButton.onclick = writeFile;
+        readButton.onclick = readFile;
+    </script>
+</body>
+
+</html>
