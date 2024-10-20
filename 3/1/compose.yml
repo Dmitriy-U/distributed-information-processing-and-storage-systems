@@ -1,0 +1,28 @@
+version: '3.8'
+networks:
+  laboratory-1-network:
+    driver: bridge
+
+services:
+  laboratory-1-1:
+    image: cassandra:latest
+    container_name: laboratory-1-1
+    hostname: laboratory-1-1
+    networks:
+      - laboratory-1-network
+    ports:
+      - "9042:9042"
+
+  laboratory-1-2:
+    image: cassandra:latest
+    container_name: laboratory-1-2
+    hostname: laboratory-1-2
+    networks:
+      - laboratory-1-network
+    ports:
+      - "9043:9042"
+    environment:
+      CASSANDRA_SEEDS: "laboratory-1-1"
+    depends_on:
+      laboratory-1-1:
+        condition: service_started
