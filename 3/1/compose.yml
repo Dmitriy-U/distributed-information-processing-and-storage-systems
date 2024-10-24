@@ -11,7 +11,23 @@ services:
     networks:
       - laboratory-1-network
     ports:
-      - "9042:9042"
+      - 9042:9042
+      - 7000:7000
+    environment:
+      - CASSANDRA_START_RPC=true
+      - CASSANDRA_RPC_ADDRESS=0.0.0.0
+      - CASSANDRA_LISTEN_ADDRESS=auto
+      - CASSANDRA_CLUSTER_NAME=laboratory-1-cluster
+      - CASSANDRA_ENDPOINT_SNITCH=GossipingPropertyFileSnitch
+      - CASSANDRA_DC=laboratory-1-datacenter
+    restart:
+      on-failure
+    healthcheck:
+      test: ['CMD-SHELL', 'nodetool status']
+      interval: 2m
+      start_period: 2m
+      timeout: 10s
+      retries: 3
 
   laboratory-1-2:
     image: cassandra:latest
@@ -20,9 +36,23 @@ services:
     networks:
       - laboratory-1-network
     ports:
-      - "9043:9042"
+      - 9043:9042
     environment:
-      CASSANDRA_SEEDS: "laboratory-1-1"
+      - CASSANDRA_START_RPC=true
+      - CASSANDRA_RPC_ADDRESS=0.0.0.0
+      - CASSANDRA_LISTEN_ADDRESS=auto
+      - CASSANDRA_CLUSTER_NAME=laboratory-1-cluster
+      - CASSANDRA_ENDPOINT_SNITCH=GossipingPropertyFileSnitch
+      - CASSANDRA_DC=laboratory-1-datacenter
+      - CASSANDRA_SEEDS=laboratory-1-1
+    restart:
+      on-failure
+    healthcheck:
+      test: ['CMD-SHELL', 'nodetool status']
+      interval: 2m
+      start_period: 2m
+      timeout: 10s
+      retries: 3
     depends_on:
       laboratory-1-1:
         condition: service_started
