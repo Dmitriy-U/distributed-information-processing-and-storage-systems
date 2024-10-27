@@ -1,9 +1,11 @@
+from time import time
 from random import randrange
-from cassandra.cluster import Session
-
 from uuid import uuid4
 
-from .constants import KEYSPACE, REPLICATION_NUMBER, USER_LIST, USER_LIST_LEN, PRODUCT_LIST, PRODUCT_LIST_LEN
+from cassandra.cluster import Session
+
+from .constants import KEYSPACE, REPLICATION_NUMBER, USER_LIST, USER_LIST_LEN, PRODUCT_LIST, PRODUCT_LIST_LEN, \
+    ORDER_DATETIME_STARTS_TIMESTAMP_SECONDS
 
 
 def get_random_user():
@@ -24,11 +26,14 @@ def init_db(session: Session):
 
 def make_ceed_random(session: Session, ceed_number: int):
     session.set_keyspace(KEYSPACE)
+    current_datetime_timestamp_seconds = int(time())
+    timestamp_range = current_datetime_timestamp_seconds - ORDER_DATETIME_STARTS_TIMESTAMP_SECONDS
 
     for i in range(ceed_number):
         user = get_random_user()
         product = get_random_product()
-        query = f"INSERT INTO {KEYSPACE}.orders (uuid, user_uuid, product_uuid, amount, timestamp) VALUES ({str(uuid4())}, {user.get('uuid')}, {product.get('uuid')}, {product.get('amount')}, toTimeStamp(now()))"
+        timestamp = current_datetime_timestamp_seconds - randrange(timestamp_range)
+        query = f"INSERT INTO {KEYSPACE}.orders (uuid, user_uuid, product_uuid, amount, timestamp) VALUES ({str(uuid4())}, {user.get('uuid')}, {product.get('uuid')}, {product.get('amount')}, {timestamp})"
         session.execute(query)
 
 

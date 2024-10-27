@@ -4,55 +4,56 @@ networks:
     driver: bridge
 
 services:
-  laboratory-1-1:
+  laboratory-1-db-1:
     image: cassandra:latest
-    container_name: laboratory-1-1
-    hostname: laboratory-1-1
+    container_name: laboratory-1-db-1
     networks:
       - laboratory-1-network
     ports:
-      - 9042:9042
-      - 7000:7000
+      - "9042:9042"
+      - "7000:7000"
     environment:
-      - CASSANDRA_START_RPC=true
-      - CASSANDRA_RPC_ADDRESS=0.0.0.0
-      - CASSANDRA_LISTEN_ADDRESS=auto
-      - CASSANDRA_CLUSTER_NAME=laboratory-1-cluster
-      - CASSANDRA_ENDPOINT_SNITCH=GossipingPropertyFileSnitch
-      - CASSANDRA_DC=laboratory-1-datacenter
+      CASSANDRA_START_RPC: true
+      CASSANDRA_RPC_ADDRESS: 0.0.0.0
+      CASSANDRA_LISTEN_ADDRESS: auto
+      CASSANDRA_CLUSTER_NAME: laboratory-1-cluster
+      CASSANDRA_ENDPOINT_SNITCH: GossipingPropertyFileSnitch
+      CASSANDRA_DC: laboratory-1-datacenter
+      CASSANDRA_NUM_TOKENS: 256
+      CASSANDRA_RACK: rack1
     restart:
       on-failure
-    healthcheck:
-      test: ['CMD-SHELL', 'nodetool status']
-      interval: 2m
-      start_period: 2m
-      timeout: 10s
-      retries: 3
 
-  laboratory-1-2:
+  laboratory-1-db-2:
     image: cassandra:latest
-    container_name: laboratory-1-2
-    hostname: laboratory-1-2
+    container_name: laboratory-1-db-2
     networks:
       - laboratory-1-network
     ports:
-      - 9043:9042
+      - "9043:9042"
     environment:
-      - CASSANDRA_START_RPC=true
-      - CASSANDRA_RPC_ADDRESS=0.0.0.0
-      - CASSANDRA_LISTEN_ADDRESS=auto
-      - CASSANDRA_CLUSTER_NAME=laboratory-1-cluster
-      - CASSANDRA_ENDPOINT_SNITCH=GossipingPropertyFileSnitch
-      - CASSANDRA_DC=laboratory-1-datacenter
-      - CASSANDRA_SEEDS=laboratory-1-1
+      CASSANDRA_START_RPC: true
+      CASSANDRA_RPC_ADDRESS: 0.0.0.0
+      CASSANDRA_LISTEN_ADDRESS: auto
+      CASSANDRA_CLUSTER_NAME: laboratory-1-cluster
+      CASSANDRA_ENDPOINT_SNITCH: GossipingPropertyFileSnitch
+      CASSANDRA_DC: laboratory-1-datacenter
+      CASSANDRA_SEEDS: laboratory-1-db-1
+      CASSANDRA_NUM_TOKENS: 256
+      CASSANDRA_RACK: rack1
     restart:
       on-failure
-    healthcheck:
-      test: ['CMD-SHELL', 'nodetool status']
-      interval: 2m
-      start_period: 2m
-      timeout: 10s
-      retries: 3
     depends_on:
-      laboratory-1-1:
+      laboratory-1-db-1:
+        condition: service_started
+
+  laboratory-1-main:
+    build: .
+    image: laboratory-1-main
+    ports:
+      - "9090:9090"
+    restart:
+      on-failure
+    depends_on:
+      laboratory-1-db-2:
         condition: service_started
