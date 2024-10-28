@@ -48,12 +48,19 @@ services:
         condition: service_started
 
   laboratory-1-main:
-    build: .
+    build:
+      context: .
+    container_name: laboratory-1-main
     image: laboratory-1-main
+    networks:
+      - laboratory-1-network
     ports:
       - "9090:9090"
     restart:
       on-failure
+    environment:
+      CASSANDRA_HOSTS: "laboratory-1-db-1 laboratory-1-db-2"
+      CASSANDRA_PORT: 9042
     depends_on:
       laboratory-1-db-2:
         condition: service_started

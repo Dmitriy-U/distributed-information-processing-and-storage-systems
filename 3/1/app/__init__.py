@@ -1,17 +1,24 @@
+import os
+
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from pydantic import BaseModel
 
-from fastapi.responses import Response
 from cassandra.cluster import Cluster
-from fastapi.staticfiles import StaticFiles
+from fastapi.responses import Response
 from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
+from cassandra.auth import PlainTextAuthProvider
 from fastapi.middleware.cors import CORSMiddleware
 
 from .helpers import init_db, make_ceed_random
 
-cluster = Cluster(['127.0.0.1'])
+CASSANDRA_HOSTS = os.getenv("CASSANDRA_HOSTS", "laboratory-1-db-1 laboratory-1-db-2")
+CASSANDRA_PORT = int(os.getenv("CASSANDRA_PORT", 9042))
+
+auth_provider = PlainTextAuthProvider(username='cassandra', password='password')
+cluster = Cluster(CASSANDRA_HOSTS.split(' '), port=CASSANDRA_PORT, auth_provider=auth_provider)
 session = cluster.connect()
 
 
