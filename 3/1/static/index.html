@@ -4,81 +4,59 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport"
-        content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
-    <title>Распределённое хранение данных: Запись/Чтение</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/css/bootstrap.min.css" />
+    <title>Лабораторная работа 1</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/css/bootstrap.min.css"/>
 </head>
 
 <body>
-    <div class="container">
-        <h1 class="mb-3">Распределённое хранение данных: Запись/Чтение</h1>
+<div class="container">
+    <h1 class="mb-3">Лабораторная работа 1</h1>
+    <form id="ceed-form">
+        <legend>Генерация новых заказов</legend>
         <div class="input-group mb-3">
-            <label class="input-group-text" for="key">Ключ</label>
-            <input type="email" class="form-control" id="key" placeholder="test.txt">
-            <button class="btn btn-outline-primary" type="button" id="write">Записать</button>
-            <button class="btn btn-outline-primary" type="button" id="read">Прочитать</button>
+            <label class="input-group-text">Количество</label>
+            <input type="number" name="count" class="form-control" placeholder="1000" value="1000"/>
+            <button type="submit" class="btn btn-primary">Создать</button>
         </div>
-        <div>
-            <div class="input-group">
-            </div>
-            </form>
-        </div>
-    </div>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.min.js"></script>
-    <script>
-        const keyInput = document.getElementById('key');
-        const writeButton = document.getElementById('write');
-        const readButton = document.getElementById('read');
-        const writeFile = async () => {
-            const key = keyInput.value;
-            try {
-                const [fileHandle] = await showOpenFilePicker({ multiple: false });
-                const fileData = await fileHandle.getFile();
-                const buffer = await fileData.arrayBuffer();
-                const result = await fetch(
-                    `/data/${key}`,
-                    {
-                        method: "POST",
-                        body: buffer,
-                        headers: new Headers({
-                            'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-                        })
-                    }
-                );
-                alert(result.ok ? 'Запись успешна' : 'Запись не удалась');
-            } catch (e) {
-                console.warn(e.message);
-            }
-        }
+    </form>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.min.js"></script>
+<script>
+    const submitButtonList = Array.from(document.querySelectorAll('[type="submit"]'));
+    const ceedForm = document.getElementById('ceed-form');
 
-        const readFile = async () => {
-            const key = keyInput.value;
-            try {
-                const result = await fetch(
-                    `/data/${key}`,
-                    {
-                        method: "GET",
-                    }
-                );
-                if (result.ok) {
-                    const blob = await result.blob();
-                    const fileHandle = await showSaveFilePicker({ startIn: 'downloads', suggestedName: key });
-                    const writable = await fileHandle.createWritable();
-                    await writable.write(blob);
-                    await writable.close();
-                    alert('Чтение успешно');
-                } else {
-                    alert('Чтение не удалась');
+    const setIsLoading = (isLoading = true) => {
+        submitButtonList.forEach((element) => {
+            element.disabled = isLoading;
+        });
+    }
+
+    ceedForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        setIsLoading();
+
+        const count = parseInt(event.target.elements.count.value, 10);
+        try {
+            await fetch(
+                '/api/v1/orders/ceed',
+                {
+                    method: 'POST',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({count})
                 }
-            } catch (e) {
-                console.warn(e.message);
-            }
+            );
+        } catch (e) {
+            console.warn(e.message);
+        } finally {
+            setIsLoading(false);
         }
-
-        writeButton.onclick = writeFile;
-        readButton.onclick = readFile;
-    </script>
+    });
+</script>
 </body>
 
 </html>
