@@ -22,6 +22,9 @@ def init_db(session: Session):
             REPLICATION_NUMBER) + "}")
     session.execute(
         f"CREATE TABLE IF NOT EXISTS {KEYSPACE}.orders (uuid UUID PRIMARY KEY, user_uuid UUID, product_uuid UUID, amount int, timestamp timestamp)")
+    # session.execute(
+    #     f"CREATE FUNCTION {KEYSPACE}.agg_counter ( state bigint, val counter ) CALLED ON NULL INPUT RETURNS bigint LANGUAGE java AS 'if (val != null) state = state + val; return state;'")
+    # session.execute(f"CREATE AGGREGATE {KEYSPACE}.sum_counter ( counter ) SFUNC agg_counter STYPE bigint INITCOND 0")
 
 
 def make_ceed_random(session: Session, ceed_number: int):
@@ -32,9 +35,15 @@ def make_ceed_random(session: Session, ceed_number: int):
     for i in range(ceed_number):
         user = get_random_user()
         product = get_random_product()
-        timestamp = current_datetime_timestamp_seconds - randrange(timestamp_range)
+        timestamp = (current_datetime_timestamp_seconds - randrange(timestamp_range)) * 1000
         query = f"INSERT INTO {KEYSPACE}.orders (uuid, user_uuid, product_uuid, amount, timestamp) VALUES ({str(uuid4())}, {user.get('uuid')}, {product.get('uuid')}, {product.get('amount')}, {timestamp})"
         session.execute(query)
+
+
+def get_amount(session: Session, date_start: int, date_end: int):
+    session.set_keyspace(KEYSPACE)
+    query = f"SELECT SUM (amount) FROM {KEYSPACE}.orders WHERE timestamp >= {date_start} AND timestamp <= {date_end} ALLOW FILTERING"
+    return session.execute(query)
 
 
 def get_from_db(session: Session):

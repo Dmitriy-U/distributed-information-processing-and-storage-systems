@@ -14,18 +14,31 @@
 <div class="container">
     <h1 class="mb-3">Лабораторная работа 1</h1>
     <form id="ceed-form">
-        <legend>Генерация новых заказов</legend>
+        <h2>Генерация новых заказов</h2>
         <div class="input-group mb-3">
             <label class="input-group-text">Количество</label>
             <input type="number" name="count" class="form-control" placeholder="1000" value="1000"/>
             <button type="submit" class="btn btn-primary">Создать</button>
         </div>
     </form>
+    <form id="amount-form">
+        <h2>Сумма за период</h2>
+        <div class="input-group mb-3">
+            <label class="input-group-text">Дата начала</label>
+            <input type="datetime-local" name="dateStart" class="form-control"/>
+        </div>
+        <div class="input-group mb-3">
+            <label class="input-group-text">Дата окончания</label>
+            <input type="datetime-local" name="dateEnd" class="form-control"/>
+        </div>
+        <button type="submit" class="btn btn-primary">Запросить</button>
+    </form>
 </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.min.js"></script>
 <script>
     const submitButtonList = Array.from(document.querySelectorAll('[type="submit"]'));
-    const ceedForm = document.getElementById('ceed-form');
+    const formCeed = document.getElementById('ceed-form');
+    const formAmount = document.getElementById('amount-form');
 
     const setIsLoading = (isLoading = true) => {
         submitButtonList.forEach((element) => {
@@ -33,7 +46,7 @@
         });
     }
 
-    ceedForm.addEventListener('submit', async (event) => {
+    formCeed.addEventListener('submit', async (event) => {
         event.preventDefault();
         setIsLoading();
 
@@ -50,6 +63,24 @@
                     body: JSON.stringify({count})
                 }
             );
+        } catch (e) {
+            console.warn(e.message);
+        } finally {
+            setIsLoading(false);
+        }
+    });
+
+    formAmount.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        setIsLoading();
+
+        const dateStart = new Date(event.target.elements.dateStart.value).getTime();
+        const dateEnd = new Date(event.target.elements.dateEnd.value).getTime();
+        const searchParams = new URLSearchParams({'date_start': dateStart, 'date_end': dateEnd});
+        try {
+            const result = await fetch(`/api/v1/orders/amount?${searchParams.toString()}`, {method: 'GET'});
+            const data = await result.json();
+            alert(data.amount);
         } catch (e) {
             console.warn(e.message);
         } finally {

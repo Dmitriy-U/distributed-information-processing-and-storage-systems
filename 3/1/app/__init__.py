@@ -12,7 +12,7 @@ from fastapi.staticfiles import StaticFiles
 from cassandra.auth import PlainTextAuthProvider
 from fastapi.middleware.cors import CORSMiddleware
 
-from .helpers import init_db, make_ceed_random
+from .helpers import init_db, make_ceed_random, get_amount
 
 CASSANDRA_HOSTS = os.getenv("CASSANDRA_HOSTS", "laboratory-1-db-1 laboratory-1-db-2")
 CASSANDRA_PORT = int(os.getenv("CASSANDRA_PORT", 9042))
@@ -65,8 +65,12 @@ async def ceed_orders(orders_request_body: OrdersRequestBody):
 
 
 @app.get("/api/v1/orders/amount")
-async def read_amount(dateFrom: int = 0, dateTo: int = 10):
-    return Response(status_code=200)
+async def read_amount(date_start: int = 0, date_end: int = 10):
+    amount = get_amount(session, date_start, date_end)
+    amount = amount.one()[0]
+    return Response(json.dumps({
+        "amount": amount
+    }), status_code=200)
 
 
 @app.get("/api/v1/orders/top-rated")
