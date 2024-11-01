@@ -1,3 +1,4 @@
+import json
 import os
 
 from contextlib import asynccontextmanager
@@ -12,7 +13,7 @@ from fastapi.staticfiles import StaticFiles
 from cassandra.auth import PlainTextAuthProvider
 from fastapi.middleware.cors import CORSMiddleware
 
-from .helpers import init_db, make_ceed_random, get_amount
+from .helpers import init_db, make_ceed_random, get_amount, get_top_rated
 
 CASSANDRA_HOSTS = os.getenv("CASSANDRA_HOSTS", "laboratory-1-db-1 laboratory-1-db-2")
 CASSANDRA_PORT = int(os.getenv("CASSANDRA_PORT", 9042))
@@ -75,4 +76,7 @@ async def read_amount(date_start: int = 0, date_end: int = 10):
 
 @app.get("/api/v1/orders/top-rated")
 async def read_amount():
-    return Response(status_code=200)
+    top_rated = get_top_rated(session)
+    return Response(json.dumps({
+        "top": top_rated
+    }), status_code=200)

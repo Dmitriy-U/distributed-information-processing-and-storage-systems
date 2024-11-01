@@ -21,7 +21,7 @@ def init_db(session: Session):
         f"CREATE KEYSPACE IF NOT EXISTS " + KEYSPACE + " WITH REPLICATION = {'class' : 'NetworkTopologyStrategy', 'laboratory-1-datacenter' : " + str(
             REPLICATION_NUMBER) + "}")
     session.execute(
-        f"CREATE TABLE IF NOT EXISTS {KEYSPACE}.orders (uuid UUID PRIMARY KEY, user_uuid UUID, product_uuid UUID, amount int, timestamp timestamp)")
+        f"CREATE TABLE IF NOT EXISTS {KEYSPACE}.orders (uuid UUID, user_uuid UUID, product_uuid UUID, amount int, timestamp timestamp, PRIMARY KEY (uuid,amount,timestamp)) WITH CLUSTERING ORDER BY (timestamp DESC)")
     # session.execute(
     #     f"CREATE FUNCTION {KEYSPACE}.agg_counter ( state bigint, val counter ) CALLED ON NULL INPUT RETURNS bigint LANGUAGE java AS 'if (val != null) state = state + val; return state;'")
     # session.execute(f"CREATE AGGREGATE {KEYSPACE}.sum_counter ( counter ) SFUNC agg_counter STYPE bigint INITCOND 0")
@@ -46,7 +46,8 @@ def get_amount(session: Session, date_start: int, date_end: int):
     return session.execute(query)
 
 
-def get_from_db(session: Session):
-    rows = session.execute(f"SELECT uuid FROM {KEYSPACE}.orders")
-    list = [str(row[0]) for row in rows]
-    print(list)
+def get_top_rated(session: Session):
+    session.set_keyspace(KEYSPACE)
+    query = f"SELECT uuid, title, COUNT (uuid) AS order_count FROM {KEYSPACE}.orders GROUP BY uuid ORDER BY order_count DESC"
+    return session.execute(query)
+
