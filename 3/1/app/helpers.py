@@ -21,7 +21,7 @@ def init_db(session: Session):
         f"CREATE KEYSPACE IF NOT EXISTS " + KEYSPACE + " WITH REPLICATION = {'class' : 'NetworkTopologyStrategy', 'laboratory-1-datacenter' : " + str(
             REPLICATION_NUMBER) + "}")
     session.execute(
-        f"CREATE TABLE IF NOT EXISTS {KEYSPACE}.orders (uuid UUID, user_uuid UUID, product_uuid UUID, amount int, timestamp timestamp, PRIMARY KEY (uuid,amount,timestamp)) WITH CLUSTERING ORDER BY (timestamp DESC)")
+        f"CREATE TABLE IF NOT EXISTS {KEYSPACE}.orders (uuid UUID, user_uuid UUID, product_uuid UUID, amount int, timestamp timestamp, PRIMARY KEY (uuid,timestamp)) WITH CLUSTERING ORDER BY (timestamp DESC)")
     # session.execute(
     #     f"CREATE FUNCTION {KEYSPACE}.agg_counter ( state bigint, val counter ) CALLED ON NULL INPUT RETURNS bigint LANGUAGE java AS 'if (val != null) state = state + val; return state;'")
     # session.execute(f"CREATE AGGREGATE {KEYSPACE}.sum_counter ( counter ) SFUNC agg_counter STYPE bigint INITCOND 0")
