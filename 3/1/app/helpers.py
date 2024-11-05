@@ -21,10 +21,9 @@ def init_db(session: Session):
         f"CREATE KEYSPACE IF NOT EXISTS " + KEYSPACE + " WITH REPLICATION = {'class' : 'NetworkTopologyStrategy', 'laboratory-1-datacenter' : " + str(
             REPLICATION_NUMBER) + "}")
     session.execute(
-        f"CREATE TABLE IF NOT EXISTS {KEYSPACE}.orders (uuid UUID, user_uuid UUID, product_uuid UUID, amount int, timestamp timestamp, PRIMARY KEY (uuid,timestamp)) WITH CLUSTERING ORDER BY (timestamp DESC)")
-    # session.execute(
-    #     f"CREATE FUNCTION {KEYSPACE}.agg_counter ( state bigint, val counter ) CALLED ON NULL INPUT RETURNS bigint LANGUAGE java AS 'if (val != null) state = state + val; return state;'")
-    # session.execute(f"CREATE AGGREGATE {KEYSPACE}.sum_counter ( counter ) SFUNC agg_counter STYPE bigint INITCOND 0")
+        f"CREATE TABLE IF NOT EXISTS {KEYSPACE}.orders (uuid UUID, user_uuid UUID, product_uuid UUID, amount DECIMAL, timestamp TIMESTAMP, PRIMARY KEY ((product_uuid), timestamp, uuid)) WITH CLUSTERING ORDER BY (timestamp DESC)")
+    session.execute(
+        f"CREATE TABLE IF NOT EXISTS {KEYSPACE}.stats (product_uuid UUID PRIMARY KEY, count INT, total_amount DECIMAL)")
 
 
 def make_ceed_random(session: Session, ceed_number: int):
@@ -38,6 +37,8 @@ def make_ceed_random(session: Session, ceed_number: int):
         timestamp = (current_datetime_timestamp_seconds - randrange(timestamp_range)) * 1000
         query = f"INSERT INTO {KEYSPACE}.orders (uuid, user_uuid, product_uuid, amount, timestamp) VALUES ({str(uuid4())}, {user.get('uuid')}, {product.get('uuid')}, {product.get('amount')}, {timestamp})"
         session.execute(query)
+        session.execute(
+            f"UPDATE {KEYSPACE}.stats SET count =count + 1, total_amount = total_amount + :{product.get('amount')} WHERE product_uuid = :{product.get('uuid')}")  # TODO
 
 
 def get_amount(session: Session, date_start: int, date_end: int):
@@ -48,6 +49,5 @@ def get_amount(session: Session, date_start: int, date_end: int):
 
 def get_top_rated(session: Session):
     session.set_keyspace(KEYSPACE)
-    query = f"SELECT uuid, title, COUNT (uuid) AS order_count FROM {KEYSPACE}.orders GROUP BY uuid ORDER BY order_count DESC"
+    query = f"SELECT * FROM {KEYSPACE}.stats ORDER BY count"
     return session.execute(query)
-
