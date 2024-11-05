@@ -33,12 +33,18 @@
         </div>
         <button type="submit" class="btn btn-primary">Запросить</button>
     </form>
+    <form id="top-rated-form">
+        <h2>Топовые товары</h2>
+        <button type="submit" class="btn btn-primary">Узнать рейтинг топовых товаров</button>
+        <div id="top-rated-result"></div>
+    </form>
 </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.min.js"></script>
 <script>
     const submitButtonList = Array.from(document.querySelectorAll('[type="submit"]'));
     const formCeed = document.getElementById('ceed-form');
     const formAmount = document.getElementById('amount-form');
+    const formTopRated = document.getElementById('top-rated-form');
 
     const setIsLoading = (isLoading = true) => {
         submitButtonList.forEach((element) => {
@@ -81,6 +87,21 @@
             const result = await fetch(`/api/v1/orders/amount?${searchParams.toString()}`, {method: 'GET'});
             const data = await result.json();
             alert(data.amount);
+        } catch (e) {
+            console.warn(e.message);
+        } finally {
+            setIsLoading(false);
+        }
+    });
+
+    formTopRated.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        setIsLoading();
+
+        try {
+            const result = await fetch('/api/v1/orders/top-rated', {method: 'GET'});
+            const data = await result.json();
+            console.log(data)
         } catch (e) {
             console.warn(e.message);
         } finally {
