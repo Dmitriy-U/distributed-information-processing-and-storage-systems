@@ -23,12 +23,12 @@ services:
       CASSANDRA_RACK: rack1
     restart:
       on-failure
-    healthcheck:
+    healthcheck: &healthcheck
       test: [ "CMD-SHELL", "nodetool status" ]
-      interval: 2m
-      start_period: 2m
+      interval: 1m
+      start_period: 1m
       timeout: 10s
-      retries: 3
+      retries: 10
 
   laboratory-1-db-2:
     image: cassandra:latest
@@ -43,12 +43,7 @@ services:
     depends_on:
       laboratory-1-db-1:
         condition: service_healthy
-    healthcheck:
-      test: [ "CMD-SHELL", "nodetool status" ]
-      interval: 2m
-      start_period: 2m
-      timeout: 10s
-      retries: 3
+    healthcheck: *healthcheck
 
   laboratory-1-main:
     build:
