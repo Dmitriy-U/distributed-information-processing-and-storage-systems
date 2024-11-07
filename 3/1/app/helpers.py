@@ -20,10 +20,19 @@ def init_db(session: Session):
     session.execute(
         f"CREATE KEYSPACE IF NOT EXISTS " + KEYSPACE + " WITH REPLICATION = {'class' : 'NetworkTopologyStrategy', 'laboratory-1-datacenter' : " + str(
             REPLICATION_NUMBER) + "}")
-    session.execute(
-        f"CREATE TABLE IF NOT EXISTS {KEYSPACE}.orders (uuid UUID, user_uuid UUID, product_uuid UUID, amount DECIMAL, timestamp TIMESTAMP, PRIMARY KEY ((product_uuid), timestamp, uuid)) WITH CLUSTERING ORDER BY (timestamp DESC)")
-    session.execute(
-        f"CREATE TABLE IF NOT EXISTS {KEYSPACE}.stats (product_uuid UUID PRIMARY KEY, count INT, total_amount DECIMAL)")
+    session.execute(f"CREATE TABLE IF NOT EXISTS {KEYSPACE}.orders (uuid UUID, user_uuid UUID, product_uuid UUID, amount DECIMAL, timestamp TIMESTAMP, PRIMARY KEY ((product_uuid), timestamp, uuid)) WITH CLUSTERING ORDER BY (timestamp DESC)")
+    session.execute(f"CREATE TABLE IF NOT EXISTS {KEYSPACE}.stats (product_uuid UUID, count INT, total_amount DECIMAL, PRIMARY KEY (product_uuid))")
+    session.pr
+    for product in PRODUCT_LIST:
+        session.execute(f"INSERT INTO {KEYSPACE}.stats (product_uuid, count, total_amount) VALUES ({product['uuid']}, {0}, {0});")
+    # session.execute(
+    #     "BEGIN BATCH " +
+    #     ''.join([
+    #         f"UPDATE INTO {KEYSPACE}.stats (product_uuid, count, total_amount) VALUES ({product['uuid']}, {0}, {0});"
+    #         for product in PRODUCT_LIST
+    #     ]) +
+    #     " APPLY BATCH"
+    # )
 
 
 def make_ceed_random(session: Session, ceed_number: int):
@@ -38,7 +47,7 @@ def make_ceed_random(session: Session, ceed_number: int):
         query = f"INSERT INTO {KEYSPACE}.orders (uuid, user_uuid, product_uuid, amount, timestamp) VALUES ({str(uuid4())}, {user.get('uuid')}, {product.get('uuid')}, {product.get('amount')}, {timestamp})"
         session.execute(query)
         session.execute(
-            f"UPDATE {KEYSPACE}.stats SET count =count + 1, total_amount = total_amount + :{product.get('amount')} WHERE product_uuid = :{product.get('uuid')}")  # TODO
+            f"UPDATE {KEYSPACE}.stats SET count = count + 1, total_amount = total_amount + {product.get('amount')} WHERE product_uuid = {product.get('uuid')}")  # TODO
 
 
 def get_amount(session: Session, date_start: int, date_end: int):

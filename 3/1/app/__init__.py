@@ -15,7 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .helpers import init_db, make_ceed_random, get_amount, get_top_rated
 
-CASSANDRA_HOSTS = os.getenv("CASSANDRA_HOSTS", "laboratory-1-db-1 laboratory-1-db-2")
+CASSANDRA_HOSTS = os.getenv("CASSANDRA_HOSTS", "laboratory-1-db-1")
 CASSANDRA_PORT = int(os.getenv("CASSANDRA_PORT", 9042))
 
 auth_provider = PlainTextAuthProvider(username='cassandra', password='password')

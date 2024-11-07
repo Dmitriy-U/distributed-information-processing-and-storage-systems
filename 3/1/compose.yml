@@ -30,20 +30,20 @@ services:
       timeout: 10s
       retries: 10
 
-  laboratory-1-db-2:
-    image: cassandra:latest
-    container_name: laboratory-1-db-2
-    networks:
-      - laboratory-1-network
-    ports:
-      - "9043:9042"
-    environment: *cassandra_environment
-    restart:
-      on-failure
-    depends_on:
-      laboratory-1-db-1:
-        condition: service_healthy
-    healthcheck: *healthcheck
+#  laboratory-1-db-2:
+#    image: cassandra:latest
+#    container_name: laboratory-1-db-2
+#    networks:
+#      - laboratory-1-network
+#    ports:
+#      - "9043:9042"
+#    environment: *cassandra_environment
+#    restart:
+#      on-failure
+#    depends_on:
+#      laboratory-1-db-1:
+#        condition: service_healthy
+#    healthcheck: *healthcheck
 
   laboratory-1-main:
     build:
@@ -57,8 +57,8 @@ services:
     restart:
       on-failure
     environment:
-      CASSANDRA_HOSTS: "laboratory-1-db-1 laboratory-1-db-2"
+      CASSANDRA_HOSTS: "laboratory-1-db-1"
       CASSANDRA_PORT: 9042
     depends_on:
-      laboratory-1-db-2:
+      laboratory-1-db-1:
         condition: service_healthy
