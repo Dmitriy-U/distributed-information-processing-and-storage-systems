@@ -3,4 +3,4 @@ LABEL maintainer="Dmitriy-U"
 WORKDIR /laboratory-1
 ADD . /laboratory-1
 RUN pip install --no-cache-dir -r requirements.txt
-CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "9090", "--use-colors", "--log-level", "debug"]
+CMD ["uvicorn", "app:app", "--workers", "1", "--host", "0.0.0.0", "--port", "9090", "--use-colors", "--log-level", "debug"]
