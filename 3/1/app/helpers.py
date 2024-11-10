@@ -1,10 +1,8 @@
 from time import time
 from random import randrange
 
-from cassandra import ConsistencyLevel
 from cassandra.cluster import Session
 from cassandra.concurrent import execute_concurrent_with_args
-from cassandra.query import SimpleStatement
 
 from .constants import KEYSPACE, REPLICATION_NUMBER, USER_LIST, USER_LIST_LEN, PRODUCT_LIST, PRODUCT_LIST_LEN, \
     ORDER_DATETIME_STARTS_TIMESTAMP_SECONDS
@@ -23,8 +21,8 @@ def init_db(session: Session):
         f"CREATE KEYSPACE IF NOT EXISTS " + KEYSPACE + " WITH REPLICATION = {'class' : 'NetworkTopologyStrategy', 'laboratory-1-datacenter' : " + str(
             REPLICATION_NUMBER) + "}")
     session.set_keyspace(KEYSPACE)
-    session.execute(f"CREATE TABLE IF NOT EXISTS orders (uuid UUID, product_uuid VARCHAR, amount DECIMAL, timestamp TIMESTAMP, PRIMARY KEY ((product_uuid), timestamp, uuid)) WITH CLUSTERING ORDER BY (timestamp DESC)")
-    session.execute(f"CREATE TABLE IF NOT EXISTS stats (product_uuid VARCHAR, count INT, total_amount DECIMAL, PRIMARY KEY (product_uuid))")
+    session.execute(f"CREATE TABLE IF NOT EXISTS orders (uuid UUID, product_uuid VARCHAR, amount FLOAT, timestamp TIMESTAMP, PRIMARY KEY ((product_uuid), timestamp, uuid)) WITH CLUSTERING ORDER BY (timestamp DESC)")
+    session.execute(f"CREATE TABLE IF NOT EXISTS stats (product_uuid VARCHAR, count INT, total_amount FLOAT, PRIMARY KEY (product_uuid))")
     data = [(product['uuid'],) for product in PRODUCT_LIST]
 
     statement = session.prepare("INSERT INTO stats (product_uuid, count, total_amount) VALUES (?, 0, 0)")
@@ -36,7 +34,6 @@ def init_db(session: Session):
 
 
 def make_ceed_random(session: Session, ceed_number: int):
-    session.set_keyspace(KEYSPACE)
     current_datetime_timestamp_seconds = int(time())
     timestamp_range = current_datetime_timestamp_seconds - ORDER_DATETIME_STARTS_TIMESTAMP_SECONDS
 
@@ -46,16 +43,13 @@ def make_ceed_random(session: Session, ceed_number: int):
         session.execute(f"INSERT INTO orders (uuid, product_uuid, amount, timestamp) VALUES (uuid(), '{product.get('uuid')}', {product.get('amount')}, {timestamp})")
         result = session.execute(f"SELECT * FROM stats WHERE product_uuid = '{product.get('uuid')}'")
         _, count, total_amount = result.one()
-        session.execute(f"UPDATE stats SET count = {count + 1}, total_amount = {float(total_amount) + float(product.get('amount'))} WHERE product_uuid = '{product.get('uuid')}'")  # TODO
+        session.execute(f"UPDATE stats SET count = {count + 1}, total_amount = {float(total_amount) + float(product.get('amount'))} WHERE product_uuid = '{product.get('uuid')}'")
 
 
 def get_amount(session: Session, date_start: int, date_end: int):
-    session.set_keyspace(KEYSPACE)
     query = f"SELECT SUM (amount) FROM orders WHERE timestamp >= {date_start} AND timestamp <= {date_end} ALLOW FILTERING"
     return session.execute(query)
 
 
 def get_top_rated(session: Session):
-    session.set_keyspace(KEYSPACE)
-    query = f"SELECT * FROM stats ORDER BY count"
-    return session.execute(query)
+    return session.execute("SELECT * FROM stats")

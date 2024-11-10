@@ -78,5 +78,5 @@ async def read_amount(date_start: int = 0, date_end: int = 10):
 async def read_amount():
     top_rated = get_top_rated(session)
     return Response(json.dumps({
-        "top": top_rated
+        "top": top_rated.all()
     }), status_code=200)
