@@ -25,10 +25,10 @@ services:
       on-failure
     healthcheck: &healthcheck
       test: [ "CMD-SHELL", "nodetool status" ]
-      interval: 1s
+      interval: 2s
       start_period: 10s
-      timeout: 1s
-      retries: 90
+      timeout: 2s
+      retries: 120
 
   laboratory-1-db-2:
     image: cassandra:latest

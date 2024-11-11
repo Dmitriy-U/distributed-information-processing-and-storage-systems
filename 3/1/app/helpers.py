@@ -4,16 +4,12 @@ from random import randrange
 from cassandra.cluster import Session
 from cassandra.concurrent import execute_concurrent_with_args
 
-from .constants import KEYSPACE, REPLICATION_NUMBER, USER_LIST, USER_LIST_LEN, PRODUCT_LIST, PRODUCT_LIST_LEN, \
+from .constants import KEYSPACE, REPLICATION_NUMBER, PRODUCT_LIST, PRODUCT_LIST_LEN, \
     ORDER_DATETIME_STARTS_TIMESTAMP_SECONDS
 
 
-def get_random_user():
-    return USER_LIST[randrange(USER_LIST_LEN)]
-
-
 def get_random_product():
-    return PRODUCT_LIST[randrange(PRODUCT_LIST_LEN)]
+    return PRODUCT_LIST[randrange(0, PRODUCT_LIST_LEN)]
 
 
 def init_db(session: Session):

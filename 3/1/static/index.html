@@ -36,7 +36,7 @@
     <form id="top-rated-form">
         <h2>Топовые товары</h2>
         <button type="submit" class="btn btn-primary">Узнать рейтинг топовых товаров</button>
-        <div id="top-rated-result"></div>
+        <ol id="top-rated-result"></ol>
     </form>
 </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.3/js/bootstrap.min.js"></script>
@@ -45,6 +45,7 @@
     const formCeed = document.getElementById('ceed-form');
     const formAmount = document.getElementById('amount-form');
     const formTopRated = document.getElementById('top-rated-form');
+    const topRatedResult = document.getElementById('top-rated-result');
 
     const setIsLoading = (isLoading = true) => {
         submitButtonList.forEach((element) => {
@@ -101,7 +102,9 @@
         try {
             const result = await fetch('/api/v1/orders/top-rated', {method: 'GET'});
             const data = await result.json();
-            console.log(data)
+            const itemList = data.top.sort((a, b) => a.count - b.count);
+            console.log(itemList);
+            topRatedResult.innerHTML = itemList.map((item) => `<li>[${item.count}] ${item.title} - ${item.uuid}</li>`).join('');
         } catch (e) {
             console.warn(e.message);
         } finally {
