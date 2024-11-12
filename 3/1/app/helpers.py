@@ -14,7 +14,7 @@ def get_random_product():
 
 def init_db(session: Session):
     session.execute(
-        f"CREATE KEYSPACE IF NOT EXISTS " + KEYSPACE + " WITH REPLICATION = {'class' : 'NetworkTopologyStrategy', 'laboratory-1-datacenter' : " + str(
+        f"CREATE KEYSPACE IF NOT EXISTS " + KEYSPACE + " WITH REPLICATION = {'class' : 'SimpleStrategy', 'replication_factor' : " + str(
             REPLICATION_NUMBER) + "}")
     session.set_keyspace(KEYSPACE)
     session.execute(f"CREATE TABLE IF NOT EXISTS orders (uuid UUID, product_uuid VARCHAR, amount FLOAT, timestamp TIMESTAMP, PRIMARY KEY ((product_uuid), timestamp, uuid)) WITH CLUSTERING ORDER BY (timestamp DESC)")

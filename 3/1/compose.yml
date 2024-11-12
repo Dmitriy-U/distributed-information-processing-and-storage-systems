@@ -11,13 +11,9 @@ services:
       - laboratory-1-network
     ports:
       - "9042:9042"
-      - "7000:7000"
     environment: &cassandra_environment
-      CASSANDRA_START_RPC: true
-      CASSANDRA_RPC_ADDRESS: 0.0.0.0
-      CASSANDRA_LISTEN_ADDRESS: auto
+      CASSANDRA_SEEDS: laboratory-1-db-1
       CASSANDRA_CLUSTER_NAME: laboratory-1-cluster
-      CASSANDRA_ENDPOINT_SNITCH: GossipingPropertyFileSnitch
       CASSANDRA_DC: laboratory-1-datacenter
       CASSANDRA_NUM_TOKENS: 256
       CASSANDRA_RACK: rack1
@@ -57,8 +53,7 @@ services:
     restart:
       on-failure
     environment:
-      CASSANDRA_HOSTS: "laboratory-1-db-1 laboratory-1-db-2"
-      CASSANDRA_PORT: 9042
+      CASSANDRA_CONTACT_POINTS: "laboratory-1-db-1:9042 laboratory-1-db-2:9043"
     depends_on:
       laboratory-1-db-2:
         condition: service_healthy
