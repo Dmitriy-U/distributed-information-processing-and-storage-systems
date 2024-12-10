@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  airflow-webserver:
+    image: apache/airflow:2.10.0
+    restart: always
+    environment:
+      AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./data:/opt/airflow/data
+    command: webserver
+
+  airflow-scheduler:
+    image: apache/airflow:2.10.0
+    restart: always
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./data:/opt/airflow/data
+    command: scheduler
