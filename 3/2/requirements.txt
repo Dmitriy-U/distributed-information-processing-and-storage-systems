@@ -1,0 +1,2 @@
+apache-airflow-providers-apache-cassandra==3.7.0
+cassandra-driver==3.29.2
