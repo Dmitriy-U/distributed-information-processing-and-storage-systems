@@ -7,7 +7,7 @@
 ### Работа с контейнерами
 
 ```sh
-docker-compose up - d --build
+docker-compose up -d --build
 ```
 
 ### Вход в СУБД ноды 1

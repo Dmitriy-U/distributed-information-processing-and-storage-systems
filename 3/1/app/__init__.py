@@ -16,7 +16,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from .constants import PRODUCTS
 from .helpers import init_db, make_ceed_random, get_amount, get_top_rated
 
-CASSANDRA_CONTACT_POINTS = os.getenv("CASSANDRA_CONTACT_POINTS", "laboratory-1-db-1:9042 laboratory-1-db-2:9043") \
+CASSANDRA_CONTACT_POINTS = os.getenv("CASSANDRA_CONTACT_POINTS", "laboratory-1-db-1:9042") \
     .split(' ')
 CASSANDRA_CONTACT_POINTS = [tuple(contact_point.split(':')) for contact_point in CASSANDRA_CONTACT_POINTS]
 CASSANDRA_CONTACT_POINTS = [(address, int(port),) for address, port in CASSANDRA_CONTACT_POINTS]
