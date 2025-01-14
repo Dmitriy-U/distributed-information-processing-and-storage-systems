@@ -17,6 +17,7 @@ services:
       CASSANDRA_DC: laboratory-1-datacenter
       CASSANDRA_NUM_TOKENS: 256
       CASSANDRA_RACK: rack1
+      CASSANDRA_RPC_ADDRESS: 0.0.0.0
     restart:
       on-failure
     healthcheck: &healthcheck
