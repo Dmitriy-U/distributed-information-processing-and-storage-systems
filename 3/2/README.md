@@ -9,16 +9,10 @@ Credential for airflow webserver:
 
 ## Commands
 
-### Init airflow
-
-```sh
-docker compose up airflow-init -d
-```
-
 ### Run airflow
 
 ```sh
-docker compose up -d
+docker compose up -d --build
 ```
 
 ### Clear project
@@ -26,3 +20,16 @@ docker compose up -d
 ```sh
 docker compose down --volumes --remove-orphans
 ```
+
+## Connection
+
+Airflow console > Admin > Connections > Add a new record
+
+### Default config
+
+- Connection Id: cassandra_default
+- Connection Type: Cassandra
+- Host: host.docker.internal
+- Port: 9042
+- Login: cassandra
+- Password: password
